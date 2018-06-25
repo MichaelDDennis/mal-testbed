@@ -52,9 +52,11 @@ with tf.Session() as session:
                 
 		probca_value=session.run(probca, feed_dict=memory).item()
                 probcb_value=session.run(probcb, feed_dict=memory).item()
-                
+                ua_value=session.run(ua,feed_dict=memory).item()
+                ub_value=session.run(ub,feed_dict=memory).item()
+
                 memory[last_a]=probca_value
                 memory[last_b]=probcb_value
 
 		print("ACooperates with Prob: {a:.3f} BCooperates with Prob: {b:.3f}".format(a=probca_value, b=probcb_value))
-
+                print("UA: {a:.3f} UB: {b:.3f}".format(a=ua_value,b=ub_value))

@@ -36,6 +36,8 @@ ub=ub1+ub2
 dua = tf.train.GradientDescentOptimizer(0.01).minimize(0-ua, var_list=[a])
 dub = tf.train.GradientDescentOptimizer(0.01).minimize(0-ub, var_list=[b])
 
+
+
 #The Default Print Function
 def printF(s):
     print(s)
@@ -102,28 +104,20 @@ def TitForTatB(o,m):
 
 
 
-#The Next Two decision theories update their models via gradient decent and use that to give the next action 
-def GradDecentDTA(o,m):
-    #Currently Storing the policy in global space instead of in m
-    #Storing in m would be nicer since it makes the dependencies clear
-    
+def ModelBasedAgent(initalModel,update,predict):
+    def ModelBasedDT(o,m):
+        newM=update(m,o)
+        return (predict(newM,o),newM)
+    return (initalModel,ModelBasedDT)
+
+def GradDecentUpdate(m,o):
     state={last_a:o['lasta'],last_b:o['lastb']}
+    session.run(m['update'], feed_dict=state)
+    return m
 
-    session.run(dua, feed_dict=state)
-    probca_value=session.run(probca, feed_dict=state).item()
-    
-    return (probca_value,m)
-
-def GradDecentDTB(o,m):
-    #Currently Storing the policy in global space instead of in m
-    #Storing in m would be nicer since it makes the dependencies clear
-    
+def GradDecentPredict(m,o):
     state={last_a:o['lasta'],last_b:o['lastb']}
-
-    session.run(dub, feed_dict=state)
-    probcb_value=session.run(probcb, feed_dict=state).item()
-    
-    return (probcb_value,m)
+    return session.run(m['predict'], feed_dict=state).item()
 
 
 
@@ -134,7 +128,7 @@ def GradDecentDTB(o,m):
 model = tf.global_variables_initializer()
 with tf.Session() as session:
     session.run(model)
-    Simulate({'lasta':0.2,'lastb':0.5},ActionPairDyn,TransparentObs,TransparentObs,(0,GradDecentDTA),(0,GradDecentDTB))
+    Simulate({'lasta':0.2,'lastb':0.5},ActionPairDyn,TransparentObs,TransparentObs,ModelBasedAgent({'update':dua,'predict':probca},GradDecentUpdate,GradDecentPredict),ModelBasedAgent({'update':dub,'predict':probcb},GradDecentUpdate,GradDecentPredict))
 
 
 

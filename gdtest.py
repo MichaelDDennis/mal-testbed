@@ -5,37 +5,56 @@ import time
 last_a =tf.placeholder(tf.float32)
 last_b =tf.placeholder(tf.float32)
 
-a = tf.Variable([0.2,0.6,0.6], name="a")
-b = tf.Variable([0.3,0.7,0.3], name="b")
+
+opp    =tf.placeholder(tf.float32,(3,))
 
 
 cc=400
-cd=100
+cd=0
 dc=401
-dd=200
+dd=50
 
-probca=tf.multiply(tf.tanh(tf.multiply(a[0],last_a)+tf.multiply(a[1],last_b)+a[2]),0.5)+0.5
-probcb=tf.multiply(tf.tanh(tf.multiply(b[0],last_a)+tf.multiply(b[1],last_b)+b[2]),0.5)+0.5
-
-probca2=tf.multiply(tf.tanh(tf.multiply(a[0],probca)+tf.multiply(a[1],probcb)+a[2]),0.5)+0.5
-probcb2=tf.multiply(tf.tanh(tf.multiply(b[0],probca)+tf.multiply(b[1],probcb)+b[2]),0.5)+0.5
 
 
 def getUtilFun(cc,cd,dc,dd,probca,probcb):
-    ua = tf.multiply(tf.multiply(probca,  probcb),cc)+tf.multiply(tf.multiply(probca, 1- probcb),cd)+tf.multiply(tf.multiply(1-probca,  probcb),dc)+tf.multiply(tf.multiply(1-probca, 1- probcb),dd)
-    ub = tf.multiply(tf.multiply(probca,  probcb),cc)+tf.multiply(tf.multiply(probca, 1- probcb),dc)+tf.multiply(tf.multiply(1-probca,  probcb),cd)+tf.multiply(tf.multiply(1-probca, 1- probcb),dd)
-    return (ua,ub)
+    u = tf.multiply(tf.multiply(probca,  probcb),cc)+tf.multiply(tf.multiply(probca, 1- probcb),cd)+tf.multiply(tf.multiply(1-probca,  probcb),dc)+tf.multiply(tf.multiply(1-probca, 1- probcb),dd)
+    return u
 
-ua1,ub1=getUtilFun(cc,cd,dc,dd,probca,probcb)
-ua2,ub2=getUtilFun(cc,cd,dc,dd,probca2,probcb2)
 
+
+#All of the variables and Update for A
+a = tf.Variable([0.0,100000.0,0.0], name="a")
+
+probca     =tf.multiply(tf.tanh(tf.multiply(  a[0],last_a)+tf.multiply(  a[1],last_b)+  a[2]),0.5)+0.5
+probcb_opp =tf.multiply(tf.tanh(tf.multiply(opp[0],last_a)+tf.multiply(opp[1],last_b)+opp[2]),0.5)+0.5
+
+probca2    =tf.multiply(tf.tanh(tf.multiply(  a[0],probca)+tf.multiply(  a[1],probcb_opp)+  a[2]),0.5)+0.5
+probcb2_opp=tf.multiply(tf.tanh(tf.multiply(opp[0],probca)+tf.multiply(opp[1],probcb_opp)+opp[2]),0.5)+0.5
+
+
+
+
+ua1= getUtilFun(cc,cd,dc,dd,probca,probcb_opp)
+ua2= getUtilFun(cc,cd,dc,dd,probca2,probcb2_opp)
 ua=ua1+ua2
-ub=ub1+ub2
-
-# The Gradient Descent Optimizer does the heavy lifting
 dua = tf.train.GradientDescentOptimizer(0.01).minimize(0-ua, var_list=[a])
-dub = tf.train.GradientDescentOptimizer(0.01).minimize(0-ub, var_list=[b])
 
+
+#All of the Variables and Update for B
+b = tf.Variable([100000.0,0.0,0.0], name="b")
+
+probca_opp  =tf.multiply(tf.tanh(tf.multiply(opp[0],last_a)+tf.multiply(opp[1],last_b)+opp[2]),0.5)+0.5
+probcb      =tf.multiply(tf.tanh(tf.multiply(  b[0],last_a)+tf.multiply(  b[1],last_b)+  b[2]),0.5)+0.5
+
+probca2_opp =tf.multiply(tf.tanh(tf.multiply(opp[0],probca_opp)+tf.multiply(opp[1],probcb)+opp[2]),0.5)+0.
+probcb2     =tf.multiply(tf.tanh(tf.multiply(  b[0],probca_opp)+tf.multiply(  b[1],probcb)+  b[2]),0.5)+0.5
+
+
+
+ub1= getUtilFun(cc,cd,dc,dd,probcb,probca_opp)
+ub2= getUtilFun(cc,cd,dc,dd,probcb2,probca2_opp)
+ub=ub1+ub2
+dub = tf.train.GradientDescentOptimizer(0.01).minimize(0-ub, var_list=[b])
 
 
 #The Default Print Function
@@ -65,7 +84,7 @@ def printF(s):
 #   InitialMB: HiddenStateB
 #   DTB: ObsB x HiddenStateB --> ActB x HiddenStateB
 #
-def Simulate(InitialState,Dyn,ObsA,ObsB,A,B,printState=printF):
+def Simulate(InitialState,Dyn,ObsA,ObsB,transparencyA2B,transparencyB2A,A,B,printState=printF):
     # Normal TensorFlow - initialize values, create a session and run the model
      
     state=InitialState
@@ -75,9 +94,12 @@ def Simulate(InitialState,Dyn,ObsA,ObsB,A,B,printState=printF):
     DTB=B[1]
 
     for i in range(1000):
-        a,ma=DTA(ObsA(state),ma)
+        transparencyA2B(ma) 
         b,mb=DTB(ObsB(state),mb)
         
+        transparencyB2A(mb)
+        a,ma=DTA(ObsA(state),ma)
+         
         state=Dyn(state,a,b)
         
         printState(state)
@@ -111,24 +133,28 @@ def ModelBasedAgent(initalModel,update,predict):
     return (initalModel,ModelBasedDT)
 
 def GradDecentUpdate(m,o):
-    state={last_a:o['lasta'],last_b:o['lastb']}
+    state={opp:m['opp'],last_a:o['lasta'],last_b:o['lastb']}
     session.run(m['update'], feed_dict=state)
     return m
 
 def GradDecentPredict(m,o):
-    state={last_a:o['lasta'],last_b:o['lastb']}
+    state={opp:m['opp'],last_a:o['lasta'],last_b:o['lastb']}
     return session.run(m['predict'], feed_dict=state).item()
 
+def Transparency(a):
+    def temp(mb):
+        a['opp']=session.run(mb['me'])
+    return temp
 
 
-
-#Simulate({'lasta':1,'lastb':0},0,0,printF,ActionPairDyn,TransparentObs,TransparentObs,TitForTatA,TitForTatB)
 
 #Setting up tensor flow before running the simulation
 model = tf.global_variables_initializer()
 with tf.Session() as session:
     session.run(model)
-    Simulate({'lasta':0.2,'lastb':0.5},ActionPairDyn,TransparentObs,TransparentObs,ModelBasedAgent({'update':dua,'predict':probca},GradDecentUpdate,GradDecentPredict),ModelBasedAgent({'update':dub,'predict':probcb},GradDecentUpdate,GradDecentPredict))
+    modelA={'me':a,'opp':[] , 'update':dua,'predict':probca}
+    modelB={'me':b,'opp':[], 'update':dub,'predict':probcb}
+    Simulate({'lasta':1.0,'lastb':1.0},ActionPairDyn,TransparentObs,TransparentObs,Transparency(modelB),Transparency(modelA),ModelBasedAgent(modelA,GradDecentUpdate,GradDecentPredict),ModelBasedAgent(modelB,GradDecentUpdate,GradDecentPredict))
 
 
 

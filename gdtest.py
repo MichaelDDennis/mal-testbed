@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 import time
 
 
+# TODO Break everything out into separate files
+
 # The purpose of this class is to serve as an interface for the simulation function.  It probably will never need to
 # be changed, but will probably be sub-classed many times.
 class Agent(ABC):
@@ -130,11 +132,13 @@ def print_state_decorator(simulation):
         print(s)
         yield s
 
+
 # This simply slows down the stream
 def slow_sim_decorator(simulation, delay):
     for s in simulation:
         yield s
         time.sleep(delay)
+
 
 # This runs the stream until the end
 def run_sim(simulation):
@@ -147,7 +151,13 @@ def run_sim(simulation):
 
 # This produces a utility function, from probability distributions to
 def get_mixed_utility_function(mat):
-    def utility_function(pa, pb):
+    def utility_function(state):
+
+        a = state['me_action_node']
+        b = state['opp_action_node']
+        pa = [a, 1 - a]
+        pb = [b, 1 - b]
+
         u = 0
         for i in range(len(mat)):
             for j in range(len(mat)):
@@ -156,11 +166,11 @@ def get_mixed_utility_function(mat):
     return utility_function
 
 
-def get_discounted_utility(reward, probabiltiy_pair_ist, discount=1):
+def get_discounted_utility(reward, state_list, discount=1):
     res = 0
     current_value = 1
-    for probA, probB in probabiltiy_pair_ist:
-        res += reward(probA, probB) * current_value
+    for state in state_list:
+        res += reward(state) * current_value
         current_value *= discount
     return res
 
@@ -174,27 +184,50 @@ def make_agent(start_vector):
     payoff = [[400, 0],
               [401, 50]]
 
-    def me_model(last_me_action, last_opp_action, me_vars):
-        return tf.multiply(tf.tanh(tf.multiply(me_vars[0], last_me_action) +
-                                   tf.multiply(me_vars[1], last_opp_action) + me_vars[2]), 0.5) + 0.5
+    # TODO add easy way to bound probabilities within the computation graphs
+    # TODO add an easy way to bound probabilities during updates
+    # TODO add an easy way to build "complete" policy spaces
+    def me_model(observation, me_vars):
+        return tf.multiply(tf.tanh(tf.multiply(me_vars[0], observation['me_action_node']) +
+                                   tf.multiply(me_vars[1], observation['opp_action_node']) + me_vars[2]), 0.5) + 0.5
 
-    def opp_model(last_me_action, last_opp_action, opp_vars):
-        return tf.multiply(tf.tanh(tf.multiply(opp_vars[0], last_opp_action) +
-                                   tf.multiply(opp_vars[1], last_me_action) + opp_vars[2]), 0.5) + 0.5
+    def opp_model(observation, opp_vars):
+        return tf.multiply(tf.tanh(tf.multiply(opp_vars[0], observation['opp_action_node']) +
+                                   tf.multiply(opp_vars[1], observation['me_action_node']) + opp_vars[2]), 0.5) + 0.5
 
-    probcme = me_model(last_me, last_opp, me)
-    probcopp = opp_model(last_me, last_opp, opp)
+    # TODO Fix Dynamics Model so that it is sampling-based instead of distribution game.
+    def dyn_model(_, me_action, them_action):
+        return {'me_action_node': me_action, 'opp_action_node': them_action}
 
-    probcme2 = me_model(probcme, probcopp, me)
-    probcopp2 = opp_model(probcme, probcopp, opp)
+    def me_observation_model(state):
+        return state
 
-    probcmePA = [probcme, 1 - probcme]
-    probcoppPA = [probcopp, 1 - probcopp]
-    probcme2PA = [probcme2, 1 - probcme2]
-    probcopp2PA = [probcopp2, 1 - probcopp2]
+    def opp_observation_model(state):
+        return {'me_action_node': state['opp_action_node'], 'opp_action_node': state['me_action_node']}
 
-    u = get_discounted_utility(get_mixed_utility_function(payoff), [(probcmePA, probcoppPA), (probcme2PA, probcopp2PA)])
+    # TODO add opponent update models that are more realistic (gradient decent based)
+    def me_update_model(me, _):
+        return me
 
+    def opp_update_model(opp, _):
+        return opp
+
+    opp_cur = opp
+    me_cur = me
+    initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
+    state = initial_state
+    states=[]
+    for i in range(1):
+        state = dyn_model(state, me_model(me_observation_model(state), me_cur),
+                          opp_model(opp_observation_model(state), opp_cur))
+        me_cur = me_update_model(me, me_observation_model(state))
+        opp_cur = opp_update_model(opp, opp_observation_model(state))
+        states.append(state)
+
+    u = get_discounted_utility(get_mixed_utility_function(payoff), states)
+
+    # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
+    # TODO add type checking
     def make_state(observation):
         return {opp: observation['last_action_a']['model'], last_me: observation['last_action_a']['action'],
                 last_opp: observation['last_action_b']['action']}
@@ -202,7 +235,8 @@ def make_agent(start_vector):
     def get_model():
         return session.run(me)
 
-    return TransparentAgentDecorator(GradientDecentBasedAgent(probcme, u, me, make_state),get_model)
+    return TransparentAgentDecorator(GradientDecentBasedAgent(me_model(me_observation_model(initial_state), me),
+                                                              u, me, make_state), get_model)
 
 
 def main():

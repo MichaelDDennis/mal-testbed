@@ -17,24 +17,51 @@ class Agent(ABC):
         raise Exception('The action function needs to be overridden')
 
     @abstractmethod
-    def load_opp_model(self,opp):
+    def load_opp_model(self, opp):
         raise Exception('The load_opp_model function needs to be overridden')
 
 
 class ModelBasedAgent(Agent):
 
-    def __init__(self, initial_model, update, predict):
+    def __init__(self, initial_model):
         super().__init__()
         self._model = initial_model
-        self._update = update
-        self._predict = predict
 
     def get_action(self, observation):
-        self._model = self._update(self._model, observation)
-        return self._predict(self._model, observation)
+        self.update(observation)
+        return self.predict(observation)
+
+    def _get_model(self):
+        return self._model
+
+    @abstractmethod
+    def update(self, observation):
+        raise Exception('The update function needs to be overridden')
+
+    @abstractmethod
+    def predict(self, observation):
+        raise Exception('The predict function needs to be overridden')
+
+    @abstractmethod
+    def load_opp_model(self, opp):
+        raise Exception('The load_opp_model function needs to be overridden')
+
+
+class GradientDecentBasedAgent(ModelBasedAgent):
+
+    def __init__(self, initial_model):
+        super().__init__(initial_model)
+
+    def update(self, observation):
+        state = {opp: self._get_model()['opp'], last_a: observation['lasta'], last_b: observation['lastb']}
+        session.run(self._get_model()['update'], feed_dict=state)
+
+    def predict(self, observation):
+        state = {opp: self._get_model()['opp'], last_a: observation['lasta'], last_b: observation['lastb']}
+        return session.run(self._get_model()['predict'], feed_dict=state).item()
 
     def load_opp_model(self, opp):
-        self._model['opp'] = session.run(opp._model['me'])
+        self._get_model()['opp'] = session.run(opp._get_model()['me'])
 
 
 # Simulate is the Main function we will be studying, the structure here is meant to force isolation between 
@@ -89,17 +116,6 @@ def action_pair_dynamics(_, last_action_a, last_action_b):
 # Observation Function for Fully Observable EnvironRments
 def transparent_observation_function(state):
     return state
-
-
-def gradient_decent_update(memory, observation):
-    state = {opp: memory['opp'], last_a: observation['lasta'], last_b: observation['lastb']}
-    session.run(memory['update'], feed_dict=state)
-    return memory
-
-
-def gradient_decent_predict(m, o):
-    state = {opp: m['opp'], last_a: o['lasta'], last_b: o['lastb']}
-    return session.run(m['predict'], feed_dict=state).item()
 
 
 def getMixedUtilFun(mat, pa, pb):
@@ -168,8 +184,8 @@ def main():
         modelB = {'me': b, 'opp': [], 'update': dub, 'predict': probcb}
         simulate({'lasta': 1.0, 'lastb': 1.0}, action_pair_dynamics,
                  transparent_observation_function, transparent_observation_function,
-                 ModelBasedAgent(modelA, gradient_decent_update, gradient_decent_predict),
-                 ModelBasedAgent(modelB, gradient_decent_update, gradient_decent_predict))
+                 GradientDecentBasedAgent(modelA),
+                 GradientDecentBasedAgent(modelB))
 
 
 if __name__ == "__main__":

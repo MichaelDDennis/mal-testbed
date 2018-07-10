@@ -16,9 +16,6 @@ class Agent(ABC):
     def get_action(self, observation):
         raise Exception('The action function needs to be overridden')
 
-    @abstractmethod
-    def load_opp_model(self, opp):
-        raise Exception('The load_opp_model function needs to be overridden')
 
 
 class ModelBasedAgent(Agent):
@@ -42,28 +39,27 @@ class ModelBasedAgent(Agent):
     def predict(self, observation):
         raise Exception('The predict function needs to be overridden')
 
-    @abstractmethod
-    def load_opp_model(self, opp):
-        raise Exception('The load_opp_model function needs to be overridden')
 
 
 class GradientDecentBasedAgent(ModelBasedAgent):
-    def __init__(self, initial_model, predict, utility, params):
+    def __init__(self, initial_model, predict, utility, params, get_state):
         super().__init__(initial_model)
         self._predict = predict
         self._update = tf.train.GradientDescentOptimizer(0.01).minimize(0 - utility, var_list=[params])
+        self._params = params
+        self.__get_state=get_state
 
     def update(self, observation):
         session.run(self._update, feed_dict=self._get_state(observation))
 
     def predict(self, observation):
-        return session.run(self._predict, feed_dict=self._get_state(observation)).item()
+        action = session.run(self._predict, feed_dict=self._get_state(observation)).item()
+        me = session.run(self._params)
+        return action, me
 
     def _get_state(self, observation):
-        return {opp: self._get_model()['opp'], last_a: observation['lasta'], last_b: observation['lastb']}
+        return self.__get_state(observation)
 
-    def load_opp_model(self, opp):
-        self._get_model()['opp'] = session.run(opp._get_model()['me'])
 
 
 # Simulate is the Main function we will be studying, the structure here is meant to force isolation between 
@@ -92,8 +88,6 @@ class GradientDecentBasedAgent(ModelBasedAgent):
 def simulate(initial_state, dynamics, observation_function_a, observation_function_b,
              agent_a: Agent, agent_b: Agent, print_state=print):
     # Normal TensorFlow - initialize values, create a session and run the model
-    agent_b.load_opp_model(agent_a)
-    agent_a.load_opp_model(agent_b)
     state = initial_state
 
     for i in range(1000):
@@ -103,21 +97,24 @@ def simulate(initial_state, dynamics, observation_function_a, observation_functi
          
         state = dynamics(state, action_a, action_b)
 
-        agent_b.load_opp_model(agent_b)
-        agent_b.load_opp_model(agent_a)
-
         print_state(state)
         time.sleep(1)
         
 
 # State Dynamics which do not depend on the last state, and give a unique state for every action pair
 def action_pair_dynamics(_, last_action_a, last_action_b):
-    return {'lasta': last_action_a, 'lastb': last_action_b}
+    return {'lasta': last_action_a[0], 'lastb': last_action_b[0], 'a': last_action_a[1], 'b': last_action_b[1]}
 
 
 # Observation Function for Fully Observable EnvironRments
 def transparent_observation_function(state):
     return state
+
+
+# Observation Function for Fully Observable EnvironRments
+def reflective_observation_function(state):
+    res = {'lasta': state['lastb'], 'lastb': state['lasta'], 'a': state['b'], 'b': state['a']}
+    return res
 
 
 def getMixedUtilFun(mat, pa, pb):
@@ -126,6 +123,10 @@ def getMixedUtilFun(mat, pa, pb):
         for j in range(len(mat)):
             u=u+tf.multiply(tf.multiply(pa[i], pb[j]), mat[i][j])
     return u
+
+
+def make_state(observation):
+    return {opp: observation['b'], last_a: observation['lasta'], last_b: observation['lastb']}
 
 
 def main():
@@ -183,11 +184,12 @@ def main():
         session.run(model)
         modelA = {'me': a, 'opp': []}
         modelB = {'me': b, 'opp': []}
-        simulate({'lasta': 1.0, 'lastb': 1.0}, action_pair_dynamics,
-                 transparent_observation_function, transparent_observation_function,
-                 GradientDecentBasedAgent(modelA, probca, ua, a),
-                 GradientDecentBasedAgent(modelB, probcb, ub, b))
-
+        simulate({'lasta': 1.0, 'lastb': 1.0, 'a': [0.0, 100000.0, 0.0], 'b': [100000.0, 0.0, 0.0]},
+                 action_pair_dynamics,
+                 transparent_observation_function, reflective_observation_function,
+                 GradientDecentBasedAgent(modelA, probca, ua, a, make_state),
+                 GradientDecentBasedAgent(modelB, probcb, ub, b, make_state))
+s
 
 if __name__ == "__main__":
     main()

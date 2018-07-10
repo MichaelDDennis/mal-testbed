@@ -48,17 +48,19 @@ class ModelBasedAgent(Agent):
 
 
 class GradientDecentBasedAgent(ModelBasedAgent):
-
-    def __init__(self, initial_model):
+    def __init__(self, initial_model, predict, utility, params):
         super().__init__(initial_model)
+        self._predict = predict
+        self._update = tf.train.GradientDescentOptimizer(0.01).minimize(0 - utility, var_list=[params])
 
     def update(self, observation):
-        state = {opp: self._get_model()['opp'], last_a: observation['lasta'], last_b: observation['lastb']}
-        session.run(self._get_model()['update'], feed_dict=state)
+        session.run(self._update, feed_dict=self._get_state(observation))
 
     def predict(self, observation):
-        state = {opp: self._get_model()['opp'], last_a: observation['lasta'], last_b: observation['lastb']}
-        return session.run(self._get_model()['predict'], feed_dict=state).item()
+        return session.run(self._predict, feed_dict=self._get_state(observation)).item()
+
+    def _get_state(self, observation):
+        return {opp: self._get_model()['opp'], last_a: observation['lasta'], last_b: observation['lastb']}
 
     def load_opp_model(self, opp):
         self._get_model()['opp'] = session.run(opp._get_model()['me'])
@@ -154,7 +156,7 @@ def main():
     ua1 = getMixedUtilFun(payoff, probcaPA, probcb_oppPA)
     ua2 = getMixedUtilFun(payoff, probca2PA, probcb2_oppPA)
     ua = ua1 + ua2
-    dua = tf.train.GradientDescentOptimizer(0.01).minimize(0 - ua, var_list=[a])
+
 
     # All of the Variables and Update for B
     b = tf.Variable([100000.0, 0.0, 0.0], name="b")
@@ -174,18 +176,17 @@ def main():
     ub1 = getMixedUtilFun(payoff, probcbPA, probca_oppPA)
     ub2 = getMixedUtilFun(payoff, probcb2PA, probca2_oppPA)
     ub = ub1 + ub2
-    dub = tf.train.GradientDescentOptimizer(0.01).minimize(0 - ub, var_list=[b])
 
     # Setting up tensor flow before running the simulation
     model = tf.global_variables_initializer()
     with tf.Session() as session:
         session.run(model)
-        modelA = {'me': a, 'opp': [], 'update': dua, 'predict': probca}
-        modelB = {'me': b, 'opp': [], 'update': dub, 'predict': probcb}
+        modelA = {'me': a, 'opp': []}
+        modelB = {'me': b, 'opp': []}
         simulate({'lasta': 1.0, 'lastb': 1.0}, action_pair_dynamics,
                  transparent_observation_function, transparent_observation_function,
-                 GradientDecentBasedAgent(modelA),
-                 GradientDecentBasedAgent(modelB))
+                 GradientDecentBasedAgent(modelA, probca, ua, a),
+                 GradientDecentBasedAgent(modelB, probcb, ub, b))
 
 
 if __name__ == "__main__":

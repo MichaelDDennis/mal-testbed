@@ -2,11 +2,6 @@ import tensorflow as tf
 from abc import ABC, abstractmethod
 import time
 
-# refactor to remove these TODO
-session=[]
-last_a,last_b=0,0
-opp=0
-
 
 class Agent(ABC):
     def __init__(self):
@@ -15,7 +10,6 @@ class Agent(ABC):
     @abstractmethod
     def get_action(self, observation):
         raise Exception('The action function needs to be overridden')
-
 
 
 class ModelBasedAgent(Agent):
@@ -40,14 +34,13 @@ class ModelBasedAgent(Agent):
         raise Exception('The predict function needs to be overridden')
 
 
-
 class GradientDecentBasedAgent(ModelBasedAgent):
     def __init__(self, initial_model, predict, utility, params, get_state):
         super().__init__(initial_model)
         self._predict = predict
         self._update = tf.train.GradientDescentOptimizer(0.01).minimize(0 - utility, var_list=[params])
         self._params = params
-        self.__get_state=get_state
+        self.__get_state = get_state
 
     def update(self, observation):
         session.run(self._update, feed_dict=self._get_state(observation))
@@ -59,7 +52,6 @@ class GradientDecentBasedAgent(ModelBasedAgent):
 
     def _get_state(self, observation):
         return self.__get_state(observation)
-
 
 
 # Simulate is the Main function we will be studying, the structure here is meant to force isolation between 
@@ -117,79 +109,76 @@ def reflective_observation_function(state):
     return res
 
 
-def getMixedUtilFun(mat, pa, pb):
-    u=0
+def get_mixed_utility_function(mat, pa, pb):
+    u = 0
     for i in range(len(mat)):
         for j in range(len(mat)):
-            u=u+tf.multiply(tf.multiply(pa[i], pb[j]), mat[i][j])
+            u = u+tf.multiply(tf.multiply(pa[i], pb[j]), mat[i][j])
     return u
 
 
-def make_state(observation):
-    return {opp: observation['b'], last_a: observation['lasta'], last_b: observation['lastb']}
+def get_discounted_utility(payoff, probabiltiy_pair_ist, discount=1):
+    res = 0
+    current_value = 1
+    for probA, probB in probabiltiy_pair_ist:
+        res += get_mixed_utility_function(payoff, probA, probB)*current_value
+        current_value *= discount
+    return res
 
 
-def main():
-    global session, opp, last_a, last_b
-
-    last_a = tf.placeholder(tf.float32)
-    last_b = tf.placeholder(tf.float32)
+def make_agent(start_vector):
+    last_me = tf.placeholder(tf.float32)
+    last_opp = tf.placeholder(tf.float32)
     opp = tf.placeholder(tf.float32, (3,))
+    me = tf.Variable(start_vector, name="me")
 
     payoff = [[400, 0],
               [401, 50]]
 
-    # All of the variables and Update for A
-    a = tf.Variable([0.0, 100000.0, 0.0], name="a")
+    def me_model(last_me_action, last_opp_action, me_vars):
+        return tf.multiply(tf.tanh(tf.multiply(me_vars[0], last_me_action) +
+                                   tf.multiply(me_vars[1], last_opp_action) + me_vars[2]), 0.5) + 0.5
 
-    probca = tf.multiply(tf.tanh(tf.multiply(a[0], last_a) + tf.multiply(a[1], last_b) + a[2]), 0.5) + 0.5
-    probcb_opp = tf.multiply(tf.tanh(tf.multiply(opp[0], last_a) + tf.multiply(opp[1], last_b) + opp[2]), 0.5) + 0.5
+    def opp_model(last_me_action, last_opp_action, opp_vars):
+        return tf.multiply(tf.tanh(tf.multiply(opp_vars[0], last_opp_action) +
+                                   tf.multiply(opp_vars[1], last_me_action) + opp_vars[2]), 0.5) + 0.5
 
-    probca2 = tf.multiply(tf.tanh(tf.multiply(a[0], probca) + tf.multiply(a[1], probcb_opp) + a[2]), 0.5) + 0.5
-    probcb2_opp = tf.multiply(tf.tanh(tf.multiply(opp[0], probca) + tf.multiply(opp[1], probcb_opp) + opp[2]),
-                              0.5) + 0.5
+    probcme = me_model(last_me, last_opp, me)
+    probcopp = opp_model(last_me, last_opp, opp)
 
-    probcaPA = [probca, 1 - probca]
-    probcb_oppPA = [probcb_opp, 1 - probcb_opp]
-    probca2PA = [probca2, 1 - probca2]
-    probcb2_oppPA = [probcb2_opp, 1 - probcb2_opp]
+    probcme2 = me_model(probcme, probcopp, me)
+    probcopp2 = opp_model(probcme, probcopp, me)
 
-    ua1 = getMixedUtilFun(payoff, probcaPA, probcb_oppPA)
-    ua2 = getMixedUtilFun(payoff, probca2PA, probcb2_oppPA)
-    ua = ua1 + ua2
+    probcmePA = [probcme, 1 - probcme]
+    probcoppPA = [probcopp, 1 - probcopp]
+    probcme2PA = [probcme2, 1 - probcme2]
+    probcopp2PA = [probcopp2, 1 - probcopp2]
+
+    u = get_discounted_utility(payoff, [(probcmePA, probcoppPA), (probcme2PA, probcopp2PA)])
+
+    modelA = {'me': me}
+
+    def make_state(observation):
+        return {opp: observation['b'], last_me: observation['lasta'], last_opp: observation['lastb']}
+
+    return GradientDecentBasedAgent(modelA, probcme, u, me, make_state)
 
 
-    # All of the Variables and Update for B
-    b = tf.Variable([100000.0, 0.0, 0.0], name="b")
+def main():
+    global session
 
-    probca_opp = tf.multiply(tf.tanh(tf.multiply(opp[0], last_a) + tf.multiply(opp[1], last_b) + opp[2]), 0.5) + 0.5
-    probcb = tf.multiply(tf.tanh(tf.multiply(b[0], last_a) + tf.multiply(b[1], last_b) + b[2]), 0.5) + 0.5
-
-    probca2_opp = tf.multiply(tf.tanh(tf.multiply(opp[0], probca_opp) + tf.multiply(opp[1], probcb) + opp[2]),
-                              0.5) + 0.5
-    probcb2 = tf.multiply(tf.tanh(tf.multiply(b[0], probca_opp) + tf.multiply(b[1], probcb) + b[2]), 0.5) + 0.5
-
-    probca_oppPA = [probca_opp, 1 - probca_opp]
-    probcbPA = [probcb, 1 - probcb]
-    probca2_oppPA = [probca2_opp, 1 - probca2_opp]
-    probcb2PA = [probcb2, 1 - probcb2]
-
-    ub1 = getMixedUtilFun(payoff, probcbPA, probca_oppPA)
-    ub2 = getMixedUtilFun(payoff, probcb2PA, probca2_oppPA)
-    ub = ub1 + ub2
+    agent_a = make_agent([0.0, 100000.0, 0.0])
+    agent_b = make_agent([100000.0, 0.0, 0.0])
 
     # Setting up tensor flow before running the simulation
     model = tf.global_variables_initializer()
     with tf.Session() as session:
         session.run(model)
-        modelA = {'me': a, 'opp': []}
-        modelB = {'me': b, 'opp': []}
-        simulate({'lasta': 1.0, 'lastb': 1.0, 'a': [0.0, 100000.0, 0.0], 'b': [100000.0, 0.0, 0.0]},
-                 action_pair_dynamics,
-                 transparent_observation_function, reflective_observation_function,
-                 GradientDecentBasedAgent(modelA, probca, ua, a, make_state),
-                 GradientDecentBasedAgent(modelB, probcb, ub, b, make_state))
-s
+
+        initial_state = {'lasta': 1.0, 'lastb': 1.0, 'a': [0.0, 100000.0, 0.0], 'b': [100000.0, 0.0, 0.0]}
+        simulate(initial_state, action_pair_dynamics, transparent_observation_function, reflective_observation_function,
+                 agent_a, agent_b)
+
 
 if __name__ == "__main__":
     main()

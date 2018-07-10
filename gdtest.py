@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 import time
 
 
+# The purpose of this class is to serve as an interface for the simulation function.  It probably will never need to
+# be changed, but will probably be sub-classed many times.
 class Agent(ABC):
     def __init__(self):
         pass
@@ -12,6 +14,7 @@ class Agent(ABC):
         raise Exception('The action function needs to be overridden')
 
 
+# This class is simply for convenience, so you can make agents based on the more natural update/predict breakdown.
 class ModelBasedAgent(Agent):
 
     def __init__(self):
@@ -30,6 +33,8 @@ class ModelBasedAgent(Agent):
         raise Exception('The predict function needs to be overridden')
 
 
+# This class implements the above interfaces so it can be used in simulations.  It takes responsibility for building the
+# update mechanism and running it at the appropriate times, but must be given the appropriate computation graphs
 class GradientDecentBasedAgent(ModelBasedAgent):
     def __init__(self, predict, utility, params, get_state):
         super().__init__()
@@ -43,20 +48,33 @@ class GradientDecentBasedAgent(ModelBasedAgent):
 
     def predict(self, observation):
         action = session.run(self._predict, feed_dict=self._get_state(observation)).item()
-        me = session.run(self._params)
-        return action, me
+        return action
 
     def _get_state(self, observation):
         return self.__get_state(observation)
 
 
+# This class is a wrapper around agents that makes them pair their models with whatever action they take.  This forces
+# them to be transparent as the other agent can read their model from their observations.
+class TransparentAgentDecorator(Agent):
+    def __init__(self, agent, get_model):
+        super().__init__()
+        self._agent = agent
+        self._get_model = get_model
+
+    def get_action(self, observation):
+        return {'action': self._agent.get_action(observation), 'model': self._get_model()}
+
+
 # Simulate is the Main function we will be studying, the structure here is meant to force isolation between 
-# different parts of the code base so it is easier to tell what is going on and who knows about who.  Ideally
-# there would be no global state, and all model parameters, would be fed through ma/mb.
+# different parts of the code base so it is easier to tell what is going on and who knows about who.
 #
-# One specific way in which this helps avoid confusion is in the seperating the game itself from how they 
+# One specific way in which this helps avoid confusion is in the separating the game itself from how they
 # update their models.  Though both will have similar structure, one will be in the agents head and the 
 # other will be in the real world.  Only the first needs to be differentiable and they need not always match.
+#
+# I also made this a streaming iterator so that interaction with it is easier and analysis of results can be seen
+# as soon as possible.
 #
 # For clarity, the types of all of the arguments are as follows:
 #
@@ -65,16 +83,11 @@ class GradientDecentBasedAgent(ModelBasedAgent):
 # ObsA: State -> ObsA
 # ObsB: State -> ObsB
 #
-# A: (InitialMA,DTA)
-#   InitialMA: HiddenStateA
-#   DTA: ObsA x HiddenStateA --> ActA x HiddenStateA
-#
-# B: (InitialMB,DTB)
-#   InitialMB: HiddenStateB
-#   DTB: ObsB x HiddenStateB --> ActB x HiddenStateB
+# A: Agent
+# B: Agent
 #
 def simulate(initial_state, dynamics, observation_function_a, observation_function_b,
-             agent_a: Agent, agent_b: Agent, print_state=print):
+             agent_a: Agent, agent_b: Agent):
     # Normal TensorFlow - initialize values, create a session and run the model
     state = initial_state
 
@@ -86,41 +99,53 @@ def simulate(initial_state, dynamics, observation_function_a, observation_functi
         state = dynamics(state, action_a, action_b)
 
         yield state
-        
 
+
+# Simulation Building Tools
+
+
+# State Dynamics which do not depend on the last state, and give a unique state for every action pair
+def action_pair_dynamics(_, last_action_a, last_action_b):
+    return {'last_action_a': last_action_a, 'last_action_b': last_action_b}
+
+
+# Observation Function for Fully Observable Environments
+def full_observation_function(state):
+    return state
+
+
+# Reflects the observation so that the game is symmetric
+def reflective_pair_observation_function(state):
+    res = {'last_action_a': state['last_action_b'], 'last_action_b': state['last_action_a']}
+    return res
+
+
+# Stream Processing Tools
+
+
+# This simply iterates through the states as they are produced from the simulation, prints them, and hands them to
+# another stream
 def print_state_decorator(simulation):
     for s in simulation:
         print(s)
         yield s
 
-
+# This simply slows down the stream
 def slow_sim_decorator(simulation, delay):
     for s in simulation:
         yield s
         time.sleep(delay)
 
-
+# This runs the stream until the end
 def run_sim(simulation):
     for _ in simulation:
         pass
 
 
-# State Dynamics which do not depend on the last state, and give a unique state for every action pair
-def action_pair_dynamics(_, last_action_a, last_action_b):
-    return {'lasta': last_action_a[0], 'lastb': last_action_b[0], 'a': last_action_a[1], 'b': last_action_b[1]}
+# Computation Graph Building Tools
 
 
-# Observation Function for Fully Observable EnvironRments
-def transparent_observation_function(state):
-    return state
-
-
-# Observation Function for Fully Observable EnvironRments
-def reflective_observation_function(state):
-    res = {'lasta': state['lastb'], 'lastb': state['lasta'], 'a': state['b'], 'b': state['a']}
-    return res
-
-
+# This produces a utility function, from probability distributions to
 def get_mixed_utility_function(mat):
     def utility_function(pa, pb):
         u = 0
@@ -161,7 +186,7 @@ def make_agent(start_vector):
     probcopp = opp_model(last_me, last_opp, opp)
 
     probcme2 = me_model(probcme, probcopp, me)
-    probcopp2 = opp_model(probcme, probcopp, me)
+    probcopp2 = opp_model(probcme, probcopp, opp)
 
     probcmePA = [probcme, 1 - probcme]
     probcoppPA = [probcopp, 1 - probcopp]
@@ -171,9 +196,13 @@ def make_agent(start_vector):
     u = get_discounted_utility(get_mixed_utility_function(payoff), [(probcmePA, probcoppPA), (probcme2PA, probcopp2PA)])
 
     def make_state(observation):
-        return {opp: observation['b'], last_me: observation['lasta'], last_opp: observation['lastb']}
+        return {opp: observation['last_action_a']['model'], last_me: observation['last_action_a']['action'],
+                last_opp: observation['last_action_b']['action']}
 
-    return GradientDecentBasedAgent(probcme, u, me, make_state)
+    def get_model():
+        return session.run(me)
+
+    return TransparentAgentDecorator(GradientDecentBasedAgent(probcme, u, me, make_state),get_model)
 
 
 def main():
@@ -187,9 +216,10 @@ def main():
     with tf.Session() as session:
         session.run(model)
 
-        initial_state = {'lasta': 1.0, 'lastb': 1.0, 'a': [0.0, 100000.0, 0.0], 'b': [100000.0, 0.0, 0.0]}
-        simulation = simulate(initial_state, action_pair_dynamics, transparent_observation_function,
-                              reflective_observation_function, agent_a, agent_b)
+        initial_state = {'last_action_a': {'action': 1.0, 'model': [0.0, 100000.0, 0.0]},
+                         'last_action_b': {'action': 1.0, 'model': [100000.0, 0.0, 0.0]}}
+        simulation = simulate(initial_state, action_pair_dynamics, full_observation_function,
+                              reflective_pair_observation_function, agent_a, agent_b)
 
         run_sim(print_state_decorator(slow_sim_decorator(simulation, 1)))
 

@@ -85,9 +85,22 @@ def simulate(initial_state, dynamics, observation_function_a, observation_functi
          
         state = dynamics(state, action_a, action_b)
 
-        print_state(state)
-        time.sleep(1)
+        yield state
         
+
+def print_state_decorator(simulation):
+    for s in simulation:
+        print(s)
+        yield s
+
+def slow_sim_decorator(simulation,delay):
+    for s in simulation:
+        yield s
+        time.sleep(delay)
+
+def run_sim(simulation):
+    for s in simulation:
+        pass
 
 # State Dynamics which do not depend on the last state, and give a unique state for every action pair
 def action_pair_dynamics(_, last_action_a, last_action_b):
@@ -170,8 +183,11 @@ def main():
         session.run(model)
 
         initial_state = {'lasta': 1.0, 'lastb': 1.0, 'a': [0.0, 100000.0, 0.0], 'b': [100000.0, 0.0, 0.0]}
-        simulate(initial_state, action_pair_dynamics, transparent_observation_function, reflective_observation_function,
-                 agent_a, agent_b)
+        simulation = simulate(initial_state, action_pair_dynamics, transparent_observation_function,
+                              reflective_observation_function, agent_a, agent_b)
+
+        run_sim(print_state_decorator(slow_sim_decorator(simulation, 1)))
+
 
 
 if __name__ == "__main__":

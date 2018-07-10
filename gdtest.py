@@ -156,12 +156,12 @@ def make_agent(start_vector):
 
     u = get_discounted_utility(payoff, [(probcmePA, probcoppPA), (probcme2PA, probcopp2PA)])
 
-    modelA = {'me': me}
+    model_me = {'me': me}
 
     def make_state(observation):
         return {opp: observation['b'], last_me: observation['lasta'], last_opp: observation['lastb']}
 
-    return GradientDecentBasedAgent(modelA, probcme, u, me, make_state)
+    return GradientDecentBasedAgent(model_me, probcme, u, me, make_state)
 
 
 def main():

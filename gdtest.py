@@ -14,16 +14,12 @@ class Agent(ABC):
 
 class ModelBasedAgent(Agent):
 
-    def __init__(self, initial_model):
+    def __init__(self):
         super().__init__()
-        self._model = initial_model
 
     def get_action(self, observation):
         self.update(observation)
         return self.predict(observation)
-
-    def _get_model(self):
-        return self._model
 
     @abstractmethod
     def update(self, observation):
@@ -35,8 +31,8 @@ class ModelBasedAgent(Agent):
 
 
 class GradientDecentBasedAgent(ModelBasedAgent):
-    def __init__(self, initial_model, predict, utility, params, get_state):
-        super().__init__(initial_model)
+    def __init__(self, predict, utility, params, get_state):
+        super().__init__()
         self._predict = predict
         self._update = tf.train.GradientDescentOptimizer(0.01).minimize(0 - utility, var_list=[params])
         self._params = params
@@ -156,12 +152,10 @@ def make_agent(start_vector):
 
     u = get_discounted_utility(payoff, [(probcmePA, probcoppPA), (probcme2PA, probcopp2PA)])
 
-    model_me = {'me': me}
-
     def make_state(observation):
         return {opp: observation['b'], last_me: observation['lasta'], last_opp: observation['lastb']}
 
-    return GradientDecentBasedAgent(model_me, probcme, u, me, make_state)
+    return GradientDecentBasedAgent(probcme, u, me, make_state)
 
 
 def main():

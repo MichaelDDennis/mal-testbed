@@ -93,14 +93,17 @@ def print_state_decorator(simulation):
         print(s)
         yield s
 
-def slow_sim_decorator(simulation,delay):
+
+def slow_sim_decorator(simulation, delay):
     for s in simulation:
         yield s
         time.sleep(delay)
 
+
 def run_sim(simulation):
-    for s in simulation:
+    for _ in simulation:
         pass
+
 
 # State Dynamics which do not depend on the last state, and give a unique state for every action pair
 def action_pair_dynamics(_, last_action_a, last_action_b):
@@ -118,19 +121,21 @@ def reflective_observation_function(state):
     return res
 
 
-def get_mixed_utility_function(mat, pa, pb):
-    u = 0
-    for i in range(len(mat)):
-        for j in range(len(mat)):
-            u = u+tf.multiply(tf.multiply(pa[i], pb[j]), mat[i][j])
-    return u
+def get_mixed_utility_function(mat):
+    def utility_function(pa, pb):
+        u = 0
+        for i in range(len(mat)):
+            for j in range(len(mat)):
+                u = u+tf.multiply(tf.multiply(pa[i], pb[j]), mat[i][j])
+        return u
+    return utility_function
 
 
-def get_discounted_utility(payoff, probabiltiy_pair_ist, discount=1):
+def get_discounted_utility(reward, probabiltiy_pair_ist, discount=1):
     res = 0
     current_value = 1
     for probA, probB in probabiltiy_pair_ist:
-        res += get_mixed_utility_function(payoff, probA, probB)*current_value
+        res += reward(probA, probB) * current_value
         current_value *= discount
     return res
 
@@ -163,7 +168,7 @@ def make_agent(start_vector):
     probcme2PA = [probcme2, 1 - probcme2]
     probcopp2PA = [probcopp2, 1 - probcopp2]
 
-    u = get_discounted_utility(payoff, [(probcmePA, probcoppPA), (probcme2PA, probcopp2PA)])
+    u = get_discounted_utility(get_mixed_utility_function(payoff), [(probcmePA, probcoppPA), (probcme2PA, probcopp2PA)])
 
     def make_state(observation):
         return {opp: observation['b'], last_me: observation['lasta'], last_opp: observation['lastb']}
@@ -187,7 +192,6 @@ def main():
                               reflective_observation_function, agent_a, agent_b)
 
         run_sim(print_state_decorator(slow_sim_decorator(simulation, 1)))
-
 
 
 if __name__ == "__main__":

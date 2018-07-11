@@ -26,12 +26,16 @@ def get_mixed_utility_function(mat):
     return utility_function
 
 
-def get_discounted_utility(reward, state_list):
+def get_utility_of_states(reward, state_list):
     res = 0.0
     for state, prob in state_list:
         r = tf.multiply(reward(state), prob)
         res += r
     return res
+
+
+def bound_probabilities(input_node):
+    return tf.multiply(tf.tanh(input_node), 0.5)+0.5
 
 
 def make_agent(start_vector):
@@ -43,18 +47,16 @@ def make_agent(start_vector):
     payoff = [[400.0, 0.0],
               [401.0, 50.0]]
 
-    # TODO add easy way to bound probabilities within the computation graphs
-    # TODO add an easy way to bound probabilities during updates
     # TODO add an easy way to build "complete" policy spaces
 
     def me_model(observation, me_vars):
-        prob_c = tf.multiply(tf.tanh(tf.multiply(me_vars[0], observation['me_action_node']) +
-                                     tf.multiply(me_vars[1], observation['opp_action_node']) + me_vars[2]), 0.5) + 0.5
+        prob_c = bound_probabilities(tf.multiply(me_vars[0], observation['me_action_node']) +
+                                     tf.multiply(me_vars[1], observation['opp_action_node']) + me_vars[2])
         return [prob_c, 1.0 - prob_c]
 
     def opp_model(observation, opp_vars):
-        prob_c = tf.multiply(tf.tanh(tf.multiply(opp_vars[0], observation['opp_action_node']) +
-                                     tf.multiply(opp_vars[1], observation['me_action_node']) + opp_vars[2]), 0.5) + 0.5
+        prob_c = bound_probabilities(tf.multiply(opp_vars[0], observation['opp_action_node']) +
+                                     tf.multiply(opp_vars[1], observation['me_action_node']) + opp_vars[2])
         return [prob_c, 1.0 - prob_c]
 
     # We can always add a random player, dynamics can be deterministic
@@ -67,10 +69,10 @@ def make_agent(start_vector):
     def opp_observation_model(state):
         return {'me_action_node': state['opp_action_node'], 'opp_action_node': state['me_action_node']}
 
-    # TODO add opponent update models that are more realistic (gradient decent based)
     def me_update_model(me, _):
         return me
 
+    # TODO add opponent update models that are more realistic (gradient decent based)
     def opp_update_model(opp, _):
         return opp
 
@@ -96,7 +98,7 @@ def make_agent(start_vector):
                                                    'opp_model': opp_update_model(opp_cur, opp_observation_model(state)),
                                                    'depth': full_state['depth']+1})
 
-    u = get_discounted_utility(get_mixed_utility_function(payoff), states)
+    u = get_utility_of_states(get_mixed_utility_function(payoff), states)
 
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking

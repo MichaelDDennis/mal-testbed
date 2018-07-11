@@ -34,8 +34,6 @@ def simulate(initial_state, dynamics, observation_function_a, observation_functi
 
         yield state
 
-# Simulation Building Tools
-
 
 # State Dynamics which do not depend on the last state, and give a unique state for every action pair
 def action_pair_dynamics(_, last_action_a, last_action_b):

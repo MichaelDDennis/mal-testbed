@@ -38,6 +38,34 @@ def bound_probabilities(input_node):
     return tf.multiply(tf.tanh(input_node), 0.5)+0.5
 
 
+def make_gradient_model(reward_model, dyn_model, me_model, opp_model,
+                        me_observation_model, opp_observation_model, me_update_model, opp_update_model,
+                        initial_state_to_process, max_depth):
+
+    states = []
+    full_states_to_process = [initial_state_to_process]
+    for full_state in full_states_to_process:
+        state = full_state['state']
+        me_cur = full_state['me_model']
+        opp_cur = full_state['opp_model']
+        action_distr_me = me_model(me_observation_model(state), me_cur)
+        action_distr_opp = opp_model(opp_observation_model(state), opp_cur)
+
+        for action_me in range(1):
+            for action_opp in range(1):
+                new_state = dyn_model(state, 1.0*action_me, 1.0*action_opp)
+                prob = tf.multiply(action_distr_me[action_me], action_distr_opp[action_opp])
+                states.append((new_state, prob))
+
+                if full_state['depth'] < max_depth:
+                    full_states_to_process.append({'state': new_state,
+                                                   'me_model': me_update_model(me_cur, me_observation_model(state)),
+                                                   'opp_model': opp_update_model(opp_cur, opp_observation_model(state)),
+                                                   'depth': full_state['depth']+1})
+
+    return get_utility_of_states(reward_model, states)
+
+
 def make_agent(start_vector):
     last_me = tf.placeholder(tf.float32)
     last_opp = tf.placeholder(tf.float32)
@@ -77,28 +105,10 @@ def make_agent(start_vector):
         return opp
 
     initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
-    states = []
-    full_states_to_process = [{'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0}]
-    for full_state in full_states_to_process:
-        state = full_state['state']
-        me_cur = full_state['me_model']
-        opp_cur = full_state['opp_model']
-        action_distr_me = me_model(me_observation_model(state), me_cur)
-        action_distr_opp = opp_model(opp_observation_model(state), opp_cur)
-
-        for action_me in range(1):
-            for action_opp in range(1):
-                new_state = dyn_model(state, 1.0*action_me, 1.0*action_opp)
-                prob = tf.multiply(action_distr_me[action_me], action_distr_opp[action_opp])
-                states.append((new_state, prob))
-
-                if full_state['depth'] < 2:
-                    full_states_to_process.append({'state': new_state,
-                                                   'me_model': me_update_model(me_cur, me_observation_model(state)),
-                                                   'opp_model': opp_update_model(opp_cur, opp_observation_model(state)),
-                                                   'depth': full_state['depth']+1})
-
-    u = get_utility_of_states(get_mixed_utility_function(payoff), states)
+    initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0}
+    u=make_gradient_model(get_mixed_utility_function(payoff), dyn_model, me_model, opp_model,
+                          me_observation_model, opp_observation_model, me_update_model, opp_update_model,
+                          initial_state_to_process, 0)
 
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking

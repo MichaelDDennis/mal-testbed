@@ -42,7 +42,7 @@ class GradientDecentBasedAgent(ModelBasedAgent):
         self._predict_node = predict_node
         self._update = tf.train.GradientDescentOptimizer(0.01).minimize(0 - utility_node, var_list=[params_vars])
         self._params = params_vars
-        self.__get_state = get_state
+        self._get_state = get_state
 
     def update(self, observation_val):
         self._get_session().run(self._update, feed_dict=self._get_state(observation_val))
@@ -50,9 +50,6 @@ class GradientDecentBasedAgent(ModelBasedAgent):
     def predict(self, observation_val):
         action_val = self._get_session().run(self._predict_node, feed_dict=self._get_state(observation_val))
         return action_val
-
-    def _get_state(self, observation):
-        return self.__get_state(observation)
 
 
 # This class is a wrapper around agents that makes them pair their models with whatever action they take.  This forces

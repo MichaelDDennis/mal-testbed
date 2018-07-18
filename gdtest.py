@@ -113,7 +113,7 @@ def make_agent(start_vector):
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking
     def make_state(observation):
-        return {opp: observation['last_action_a']['model'], last_me: observation['last_action_a']['action'],
+        return {opp: observation['last_action_b']['model'], last_me: observation['last_action_a']['action'],
                 last_opp: observation['last_action_b']['action']}
 
     def get_model():

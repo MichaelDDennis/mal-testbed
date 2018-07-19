@@ -51,8 +51,8 @@ def make_gradient_model(reward_model, dyn_model, me_model, opp_model,
         action_distr_me = me_model(me_observation_model(state), me_cur)
         action_distr_opp = opp_model(opp_observation_model(state), opp_cur)
 
-        for action_me in range(1):
-            for action_opp in range(1):
+        for action_me in range(2):
+            for action_opp in range(2):
                 new_state = dyn_model(state, 1.0*action_me, 1.0*action_opp)
                 prob = tf.multiply(action_distr_me[action_me], action_distr_opp[action_opp])
                 states.append((new_state, prob))
@@ -125,7 +125,7 @@ def make_agent(start_vector):
 
 def main():
     global session
-    agent_a = make_agent([0.0, 100000.0, 0.0])
+    agent_a = make_agent([100000.0, 0.0, 0.0])
     agent_b = make_agent([100000.0, 0.0, 0.0])
 
     # Setting up tensor flow before running the simulation

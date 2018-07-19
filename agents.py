@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from numpy import random
 import tensorflow as tf
 import numpy as np
 
@@ -70,10 +69,9 @@ def sample(distribution):
     running_sum = 0
     for i in range(len(distribution)):
         running_sum = running_sum + distribution[i]
-        if (running_sum > r):
+        if running_sum > r:
             return i
     return len(distribution)-1
-
 
 
 class SamplingAgentDecorator(Agent):
@@ -88,9 +86,10 @@ class SamplingAgentDecorator(Agent):
 
 class NameAgentDecorator(Agent):
 
-    def __init__(self,agent, name):
-        self._name=name
-        self._agent=agent
+    def __init__(self, agent, name):
+        super().__init__()
+        self._name = name
+        self._agent = agent
 
     def get_action(self, observation):
         return self._agent.get_action(observation)

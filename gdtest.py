@@ -25,6 +25,7 @@ def get_mixed_utility_function(mat):
         return u
     return utility_function
 
+
 # This produces a utility function, from probability distributions to
 def get_utility_function_from_payoff(mat):
     def utility_function(state):
@@ -34,6 +35,7 @@ def get_utility_function_from_payoff(mat):
 
         return mat[a][b]
     return utility_function
+
 
 def get_utility_of_states(reward, state_list):
     res = 0.0
@@ -48,8 +50,8 @@ def bound_probabilities(input_node):
 
 
 def get_utility_node(reward_model, dyn_model, me_model, opp_model,
-                        me_observation_model, opp_observation_model, me_update_model, opp_update_model,
-                        initial_state_to_process, max_depth):
+                     me_observation_model, opp_observation_model, me_update_model, opp_update_model,
+                     initial_state_to_process, max_depth):
 
     states = []
     full_states_to_process = [initial_state_to_process]
@@ -75,7 +77,7 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
     return get_utility_of_states(reward_model, states)
 
 
-def make_agent(start_vector,name):
+def make_agent(start_vector, name):
     last_me = tf.placeholder(tf.float32)
     last_opp = tf.placeholder(tf.float32)
     opp = tf.placeholder(tf.float32, (3,))
@@ -89,12 +91,12 @@ def make_agent(start_vector,name):
     def me_model(observation, me_vars):
         prob_d = bound_probabilities(tf.multiply(me_vars[0], observation['me_action_node']-0.5) +
                                      tf.multiply(me_vars[1], observation['opp_action_node']-0.5) + me_vars[2])
-        return [1- prob_d, prob_d]
+        return [1 - prob_d, prob_d]
 
     def opp_model(observation, opp_vars):
         prob_d = bound_probabilities(tf.multiply(opp_vars[0], observation['me_action_node']-0.5) +
                                      tf.multiply(opp_vars[1], observation['opp_action_node']-0.5) + opp_vars[2])
-        return [1- prob_d, prob_d]
+        return [1 - prob_d, prob_d]
 
     # We can always add a random player, dynamics can be deterministic
     def dyn_model(_, me_action, them_action):
@@ -116,8 +118,8 @@ def make_agent(start_vector,name):
     initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
     initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0}
     u=get_utility_node(get_utility_function_from_payoff(payoff), dyn_model, me_model, opp_model,
-                          me_observation_model, opp_observation_model, me_update_model, opp_update_model,
-                          initial_state_to_process, 1)
+                       me_observation_model, opp_observation_model, me_update_model, opp_update_model,
+                       initial_state_to_process, 1)
 
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking
@@ -129,30 +131,27 @@ def make_agent(start_vector,name):
         return get_session().run(me)
 
     return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDescentBasedAgent(
-        get_session, me_model(me_observation_model(initial_state), me), u, me, make_state),name)), get_model)
-
-
+        get_session, me_model(me_observation_model(initial_state), me), u, me, make_state), name)), get_model)
 
 
 def main():
     global session
     initial_model_agent_a = [0.0, 5.0, 0.0]
     initial_model_agent_b = [0.0, 5.0, 0.0]
-    agent_a = make_agent(initial_model_agent_a,"Agent A")
-    agent_b = make_agent(initial_model_agent_b,"Agent B")
+    agent_a = make_agent(initial_model_agent_a, "Agent A")
+    agent_b = make_agent(initial_model_agent_b, "Agent B")
 
     # Setting up tensor flow before running the simulation
     model = tf.global_variables_initializer()
     with tf.Session() as session:
 
         session.run(model)
-        initial_state = {'last_action_a': {'action': {'sample': 0.0, 'distribution': []}, 'model': initial_model_agent_a},
-                         'last_action_b': {'action': {'sample': 0.0, 'distribution': []}, 'model': initial_model_agent_b}}
+        initial_state = {'last_action_a': {'action': {'sample': 0.0, 'distribution': []},
+                                           'model': initial_model_agent_a},
+                         'last_action_b': {'action': {'sample': 0.0, 'distribution': []},
+                                           'model': initial_model_agent_b}}
         simulation = simulate(initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b)
-
-
-        #run_sim(print_state_decorator(slow_sim_decorator(simulation, 1)))
 
         simulation = print_count(simulation)
         simulation = slow_sim_decorator(simulation, 1)

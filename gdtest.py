@@ -1,7 +1,7 @@
 import tensorflow as tf
 from simulation import simulate, action_pair_dynamics, full_observation_function, reflective_pair_observation_function
 from agents import GradientDecentBasedAgent, TransparentAgentDecorator, SamplingAgentDecorator, NameAgentDecorator
-from stream_processing import slow_sim_decorator, print_state_decorator, run_sim
+from stream_processing import *
 
 
 # This is just to serve as a hook to allow for building agents before the session has started
@@ -136,8 +136,8 @@ def make_agent(start_vector,name):
 
 def main():
     global session
-    agent_a = make_agent([0.0, 3.0, 0.0],"Agent A")
-    agent_b = make_agent([0.0, 3.0, 0.0],"Agent B")
+    agent_a = make_agent([0.0, 3.0, 0.0], "Agent A")
+    agent_b = make_agent([0.0, 3.0, 0.0], "Agent B")
 
     # Setting up tensor flow before running the simulation
     model = tf.global_variables_initializer()
@@ -145,12 +145,22 @@ def main():
 
         session.run(model)
 
-        initial_state = {'last_action_a': {'action': {'sample': 0.0}, 'model': [0.0, 3.0, 0.0]},
-                         'last_action_b': {'action': {'sample': 0.0}, 'model': [0.0, 3.0, 0.0]}}
+        initial_state = {'last_action_a': {'action': {'sample': 0.0, 'distribution': []}, 'model': [0.0, 3.0, 0.0]},
+                         'last_action_b': {'action': {'sample': 0.0, 'distribution': []}, 'model': [0.0, 3.0, 0.0]}}
         simulation = simulate(initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b)
 
-        run_sim(print_state_decorator(slow_sim_decorator(simulation, 1)))
+
+        #run_sim(print_state_decorator(slow_sim_decorator(simulation, 1)))
+
+        simulation = print_count(simulation)
+        simulation = slow_sim_decorator(simulation, 1)
+
+        simulation = print_actions(simulation)
+        simulation = print_distributions(simulation)
+        simulation = print_model(simulation)
+
+        run_sim(simulation)
 
 
 if __name__ == "__main__":

@@ -122,8 +122,8 @@ def make_agent(start_vector,name):
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking
     def make_state(observation):
-        return {opp: observation['last_action_b']['model'], last_me: observation['last_action_a']['action'],
-                last_opp: observation['last_action_b']['action']}
+        return {opp: observation['last_action_b']['model'], last_me: observation['last_action_a']['action']['sample'],
+                last_opp: observation['last_action_b']['action']['sample']}
 
     def get_model():
         return get_session().run(me)
@@ -145,8 +145,8 @@ def main():
 
         session.run(model)
 
-        initial_state = {'last_action_a': {'action': 0.0, 'model': [0.0, 3.0, 0.0]},
-                         'last_action_b': {'action': 0.0, 'model': [0.0, 3.0, 0.0]}}
+        initial_state = {'last_action_a': {'action': {'sample': 0.0}, 'model': [0.0, 3.0, 0.0]},
+                         'last_action_b': {'action': {'sample': 0.0}, 'model': [0.0, 3.0, 0.0]}}
         simulation = simulate(initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b)
 

@@ -49,4 +49,5 @@ def print_count(simulation):
     for s in simulation:
         print("Starting simulation round: {}".format(count))
         yield s
+        count += 1
         print("")

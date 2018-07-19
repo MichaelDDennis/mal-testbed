@@ -1,6 +1,6 @@
 import tensorflow as tf
 from simulation import simulate, action_pair_dynamics, full_observation_function, reflective_pair_observation_function
-from agents import GradientDecentBasedAgent, TransparentAgentDecorator, SamplingAgentDecorator, NameAgentDecorator
+from agents import *
 from stream_processing import *
 
 
@@ -87,13 +87,13 @@ def make_agent(start_vector,name):
     # TODO add an easy way to build "complete" policy spaces
 
     def me_model(observation, me_vars):
-        prob_d = bound_probabilities(tf.multiply(me_vars[0], observation['me_action_node']) +
-                                     tf.multiply(me_vars[1], observation['opp_action_node']) + me_vars[2])
+        prob_d = bound_probabilities(tf.multiply(me_vars[0], observation['me_action_node']-0.5) +
+                                     tf.multiply(me_vars[1], observation['opp_action_node']-0.5) + me_vars[2])
         return [1- prob_d, prob_d]
 
     def opp_model(observation, opp_vars):
-        prob_d = bound_probabilities(tf.multiply(opp_vars[0], observation['opp_action_node']) +
-                                     tf.multiply(opp_vars[1], observation['me_action_node']) + opp_vars[2])
+        prob_d = bound_probabilities(tf.multiply(opp_vars[0], observation['me_action_node']-0.5) +
+                                     tf.multiply(opp_vars[1], observation['opp_action_node']-0.5) + opp_vars[2])
         return [1- prob_d, prob_d]
 
     # We can always add a random player, dynamics can be deterministic
@@ -128,7 +128,7 @@ def make_agent(start_vector,name):
     def get_model():
         return get_session().run(me)
 
-    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDecentBasedAgent(
+    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDescentBasedAgent(
         get_session, me_model(me_observation_model(initial_state), me), u, me, make_state),name)), get_model)
 
 
@@ -136,17 +136,18 @@ def make_agent(start_vector,name):
 
 def main():
     global session
-    agent_a = make_agent([0.0, 3.0, 0.0], "Agent A")
-    agent_b = make_agent([0.0, 3.0, 0.0], "Agent B")
+    initial_model_agent_a = [0.0, 10000.0, 0.0]
+    initial_model_agent_b = [0.0, 10000.0, 0.0]
+    agent_a = make_agent(initial_model_agent_a,"Agent A")
+    agent_b = make_agent(initial_model_agent_b,"Agent B")
 
     # Setting up tensor flow before running the simulation
     model = tf.global_variables_initializer()
     with tf.Session() as session:
 
         session.run(model)
-
-        initial_state = {'last_action_a': {'action': {'sample': 0.0, 'distribution': []}, 'model': [0.0, 3.0, 0.0]},
-                         'last_action_b': {'action': {'sample': 0.0, 'distribution': []}, 'model': [0.0, 3.0, 0.0]}}
+        initial_state = {'last_action_a': {'action': {'sample': 0.0, 'distribution': []}, 'model': initial_model_agent_a},
+                         'last_action_b': {'action': {'sample': 0.0, 'distribution': []}, 'model': initial_model_agent_b}}
         simulation = simulate(initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b)
 

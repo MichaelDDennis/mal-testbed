@@ -1,6 +1,6 @@
 import tensorflow as tf
 from simulation import simulate, action_pair_dynamics, full_observation_function, reflective_pair_observation_function
-from agents import GradientDecentBasedAgent, TransparentAgentDecorator, SamplingAgentDecorator
+from agents import GradientDecentBasedAgent, TransparentAgentDecorator, SamplingAgentDecorator, NameAgentDecorator
 from stream_processing import slow_sim_decorator, print_state_decorator, run_sim
 
 
@@ -66,7 +66,7 @@ def make_gradient_model(reward_model, dyn_model, me_model, opp_model,
     return get_utility_of_states(reward_model, states)
 
 
-def make_agent(start_vector):
+def make_agent(start_vector,name):
     last_me = tf.placeholder(tf.float32)
     last_opp = tf.placeholder(tf.float32)
     opp = tf.placeholder(tf.float32, (3,))
@@ -78,14 +78,14 @@ def make_agent(start_vector):
     # TODO add an easy way to build "complete" policy spaces
 
     def me_model(observation, me_vars):
-        prob_c = bound_probabilities(tf.multiply(me_vars[0], observation['me_action_node']) +
+        prob_d = bound_probabilities(tf.multiply(me_vars[0], observation['me_action_node']) +
                                      tf.multiply(me_vars[1], observation['opp_action_node']) + me_vars[2])
-        return [prob_c, 1.0 - prob_c]
+        return [1- prob_d, prob_d]
 
     def opp_model(observation, opp_vars):
-        prob_c = bound_probabilities(tf.multiply(opp_vars[0], observation['opp_action_node']) +
+        prob_d = bound_probabilities(tf.multiply(opp_vars[0], observation['opp_action_node']) +
                                      tf.multiply(opp_vars[1], observation['me_action_node']) + opp_vars[2])
-        return [prob_c, 1.0 - prob_c]
+        return [1- prob_d, prob_d]
 
     # We can always add a random player, dynamics can be deterministic
     def dyn_model(_, me_action, them_action):
@@ -119,14 +119,16 @@ def make_agent(start_vector):
     def get_model():
         return get_session().run(me)
 
-    return TransparentAgentDecorator(SamplingAgentDecorator(GradientDecentBasedAgent(
-        get_session, me_model(me_observation_model(initial_state), me), u, me, make_state)), get_model)
+    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDecentBasedAgent(
+        get_session, me_model(me_observation_model(initial_state), me), u, me, make_state),name)), get_model)
+
+
 
 
 def main():
     global session
-    agent_a = make_agent([100000.0, 0.0, 0.0])
-    agent_b = make_agent([100000.0, 0.0, 0.0])
+    agent_a = make_agent([0.0, 3.0, 0.0],"Agent A")
+    agent_b = make_agent([0.0, 3.0, 0.0],"Agent B")
 
     # Setting up tensor flow before running the simulation
     model = tf.global_variables_initializer()
@@ -134,8 +136,8 @@ def main():
 
         session.run(model)
 
-        initial_state = {'last_action_a': {'action': 1.0, 'model': [0.0, 100000.0, 0.0]},
-                         'last_action_b': {'action': 1.0, 'model': [100000.0, 0.0, 0.0]}}
+        initial_state = {'last_action_a': {'action': 0.0, 'model': [0.0, 3.0, 0.0]},
+                         'last_action_b': {'action': 0.0, 'model': [0.0, 3.0, 0.0]}}
         simulation = simulate(initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b)
 

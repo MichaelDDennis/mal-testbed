@@ -78,3 +78,15 @@ class SamplingAgentDecorator(Agent):
     def get_action(self, observation):
         action = self._agent.get_action(observation)
         return sample(action)
+
+class NameAgentDecorator(Agent):
+
+    def __init__(self,agent, name):
+        self._name=name
+        self._agent=agent
+
+    def get_action(self, observation):
+        return self._agent.get_action(observation)
+
+    def __str__(self):
+        return self._name

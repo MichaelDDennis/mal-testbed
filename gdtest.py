@@ -25,6 +25,15 @@ def get_mixed_utility_function(mat):
         return u
     return utility_function
 
+# This produces a utility function, from probability distributions to
+def get_utility_function_from_payoff(mat):
+    def utility_function(state):
+
+        a = state['me_action_node']
+        b = state['opp_action_node']
+
+        return mat[a][b]
+    return utility_function
 
 def get_utility_of_states(reward, state_list):
     res = 0.0
@@ -38,7 +47,7 @@ def bound_probabilities(input_node):
     return tf.multiply(tf.tanh(input_node), 0.5)+0.5
 
 
-def make_gradient_model(reward_model, dyn_model, me_model, opp_model,
+def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                         me_observation_model, opp_observation_model, me_update_model, opp_update_model,
                         initial_state_to_process, max_depth):
 
@@ -53,7 +62,7 @@ def make_gradient_model(reward_model, dyn_model, me_model, opp_model,
 
         for action_me in range(2):
             for action_opp in range(2):
-                new_state = dyn_model(state, 1.0*action_me, 1.0*action_opp)
+                new_state = dyn_model(state, action_me, action_opp)
                 prob = tf.multiply(action_distr_me[action_me], action_distr_opp[action_opp])
                 states.append((new_state, prob))
 
@@ -106,9 +115,9 @@ def make_agent(start_vector,name):
 
     initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
     initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0}
-    u=make_gradient_model(get_mixed_utility_function(payoff), dyn_model, me_model, opp_model,
+    u=get_utility_node(get_utility_function_from_payoff(payoff), dyn_model, me_model, opp_model,
                           me_observation_model, opp_observation_model, me_update_model, opp_update_model,
-                          initial_state_to_process, 0)
+                          initial_state_to_process, 1)
 
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking

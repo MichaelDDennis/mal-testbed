@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from numpy import random
 import tensorflow as tf
+import numpy as np
 
 
 # The purpose of this class is to serve as an interface for the simulation function.  It probably will never need to
@@ -65,10 +66,14 @@ class TransparentAgentDecorator(Agent):
 
 
 def sample(distribution):
-    # The following line is so pycharm knows that it not knowing where choice is is numpy's fault and not mine.
-    # noinspection PyUnresolvedReferences
-    choice = (random.choice(range(len(distribution)), 1, False, distribution)[0]*1.0).item()
-    return choice
+    r = np.random.random()
+    running_sum = 0
+    for i in range(len(distribution)):
+        running_sum = running_sum + distribution[i]
+        if (running_sum > r):
+            return i
+    return len(distribution)-1
+
 
 
 class SamplingAgentDecorator(Agent):

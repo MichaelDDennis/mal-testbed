@@ -136,8 +136,8 @@ def make_agent(start_vector,name):
 
 def main():
     global session
-    initial_model_agent_a = [0.0, 10000.0, 0.0]
-    initial_model_agent_b = [0.0, 10000.0, 0.0]
+    initial_model_agent_a = [0.0, 5.0, 0.0]
+    initial_model_agent_b = [0.0, 5.0, 0.0]
     agent_a = make_agent(initial_model_agent_a,"Agent A")
     agent_b = make_agent(initial_model_agent_b,"Agent B")
 

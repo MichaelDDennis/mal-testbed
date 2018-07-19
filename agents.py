@@ -35,7 +35,7 @@ class ModelBasedAgent(Agent):
 
 # This class implements the above interfaces so it can be used in simulations.  It takes responsibility for building the
 # update mechanism and running it at the appropriate times, but must be given the appropriate computation graphs
-class GradientDecentBasedAgent(ModelBasedAgent):
+class GradientDescentBasedAgent(ModelBasedAgent):
     def __init__(self, get_session, predict_node, utility_node, params_vars, get_state):
         super().__init__()
         self._get_session = get_session

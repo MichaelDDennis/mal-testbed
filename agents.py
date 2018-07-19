@@ -67,7 +67,8 @@ class TransparentAgentDecorator(Agent):
 def sample(distribution):
     # The following line is so pycharm knows that it not knowing where choice is is numpy's fault and not mine.
     # noinspection PyUnresolvedReferences
-    return (random.choice(range(len(distribution)), 1, distribution)[0]*1.0).item()
+    choice = (random.choice(range(len(distribution)), 1, False, distribution)[0]*1.0).item()
+    return choice
 
 
 class SamplingAgentDecorator(Agent):

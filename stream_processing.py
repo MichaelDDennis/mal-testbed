@@ -28,11 +28,25 @@ def print_actions(simulation):
                                              s['last_action_b']['action']['sample']))
         yield s
 
+def write_actions(simulation,file):
+    for s in simulation:
+        file.write("Actions were: ({},{})".format(s['last_action_a']['action']['sample'],
+                                             s['last_action_b']['action']['sample']))
+        file.write("\n")
+        yield s
+
 
 def print_distributions(simulation):
     for s in simulation:
         print("Action Distributions were: ({},{})".format(s['last_action_a']['action']['distribution'],
                                                           s['last_action_b']['action']['distribution']))
+        yield s
+
+def write_distributions(simulation, file):
+    for s in simulation:
+        file.write("Action Distributions were: ({},{})".format(s['last_action_a']['action']['distribution'],
+                                                          s['last_action_b']['action']['distribution']))
+        file.write("\n")
         yield s
 
 
@@ -42,6 +56,12 @@ def print_model(simulation):
                                                       s['last_action_b']['model']))
         yield s
 
+def write_model(simulation, file):
+    for s in simulation:
+        file.write("Model Parameters were: ({},{})".format(s['last_action_a']['model'],
+                                                      s['last_action_b']['model']))
+        file.write("\n")
+        yield s
 
 # This should be on the inside
 def print_count(simulation):
@@ -51,3 +71,13 @@ def print_count(simulation):
         yield s
         count += 1
         print("")
+
+def write_count(simulation, file):
+    count = 0
+    for s in simulation:
+        file.write("Starting simulation round: {}".format(count))
+        file.write("\n")
+        yield s
+        count += 1
+        file.write("\n")
+

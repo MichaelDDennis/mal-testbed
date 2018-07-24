@@ -16,8 +16,10 @@ def get_mixed_utility_function(mat):
 
         a = state['me_action_node']
         b = state['opp_action_node']
-        pa = [a, 1.0 - a]
-        pb = [b, 1.0 - b]
+        #TODO: check that this isn't backwards...
+        #TODO: heck, check that changing this does anything o.O. It seems to not be doing anything...
+        pa = [a, 1-a]
+        pb = [b, 1-b]
 
         u = 0.0
         for i in range(len(mat)):
@@ -56,6 +58,8 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
 
     states = []
     full_states_to_process = [initial_state_to_process]
+    #TODO: prevent exponential blowup by taking advantage of Markov property (although this won't work with learning...)
+    #TODO: also prevent exponential blowup in learning rate by renormalizing
     for full_state in full_states_to_process:
         state = full_state['state']
         me_cur = full_state['me_model']
@@ -77,14 +81,11 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
 
     return get_utility_of_states(reward_model, states)
 
-
-def make_agent(start_vector, payoff, name):
+def make_agent(start_vector, payoff, name, type = "naive gradient"):
     last_me = tf.placeholder(tf.float32)
     last_opp = tf.placeholder(tf.float32)
     opp = tf.placeholder(tf.float32, (3,))
     me = tf.Variable(start_vector, name="me")
-
-
 
     # TODO add an easy way to build "complete" policy spaces
 
@@ -111,7 +112,7 @@ def make_agent(start_vector, payoff, name):
     def me_update_model(me, _):
         return me
 
-    # TODO add opponent update models that are more realistic (gradient decent based)
+    # TODO add opponent update models that are more realistic (gradient descent based)
     def opp_update_model(opp, _):
         return opp
 
@@ -130,8 +131,17 @@ def make_agent(start_vector, payoff, name):
     def get_model():
         return get_session().run(me)
 
-    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDescentBasedAgent(
-        get_session, me_model(me_observation_model(initial_state), me), u, me, make_state), name)), get_model)
+    if (type == "naive gradient"):
+        return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDescentBasedAgent(
+            get_session, me_model(me_observation_model(initial_state), me), u, me, make_state), name)), get_model)
+    elif (type == "titty"):
+        #TODO: consider *genuinely* constant parameterizations like the following:
+        """
+        def me_model(observation, _):
+            return [1 - observation['opp_action_node'], observation['opp_action_node']]
+        """
+        return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(ConstantStrategyAgent(
+            get_session, me_model(me_observation_model(initial_state), me), u, me, make_state), name)), get_model)
 
 def initial_state_maker(me_action,opp_action,me_model,opp_model):
     return {'last_action_a': {'action': {'sample': me_action, 'distribution': []},
@@ -203,15 +213,19 @@ def compare_against_written_tests(initial_model_agent_a, initial_model_agent_b,a
 
 def main():
     global session
-    initial_model_agent_a = [0.0, 5.0, 0.0]
+    initial_model_agent_a = [0.0, 0.0, -2.0]
     initial_model_agent_b = [0.0, 5.0, 0.0]
+    initial_model_agent_titty = [0.0,1000000.0,0.0]
+    initial_model_agent_cooperate_bot = [0.0,0.0,-10000.0]
     prisoners_payoff = [[400.0, 0.0],
                         [401.0, 50.0]]
     defection_is_magic = [[0.0, 100.0],
                         [300.0, 500.0]]
     #TODO: Figure out how to pass by value for Christ's sake -- any changes we make to agent_a keep getting perpetuated >.<
-    agent_a = make_agent(initial_model_agent_a[:],prisoners_payoff,"Agent A")
-    agent_b = make_agent(initial_model_agent_b[:],prisoners_payoff, "Agent B")
+    agent_a = make_agent(initial_model_agent_a[:],prisoners_payoff,"Agent A", "naive gradient")
+    agent_b = make_agent(initial_model_agent_b[:],prisoners_payoff, "Agent B", "naive gradient")
+    agent_titty = make_agent(initial_model_agent_titty, prisoners_payoff, "Agent Tits", "naive gradient")
+    agent_cooperate_bot = make_agent(initial_model_agent_cooperate_bot, prisoners_payoff, "Agent Cooperate Bot", "naive gradient")
 
     defection_confection = False
     if defection_confection:
@@ -228,6 +242,18 @@ def main():
         #write_test_sims(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
         #uncomment compare_against_written_tests to test consistency
         #compare_against_written_tests(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
+
+        testing_titties = True
+        if testing_titties:
+            #TODO: Get ConstantStrategyAgent to actually work >.<, so that you can call agent_titty = make_agent(initial_model_agent_tits, prisoners_payoff, "Agent Tits", "titty")
+            initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_titty)
+            create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observation_function,
+                                     reflective_pair_observation_function, agent_a, agent_titty)
+        testing_cooperate_bot = False
+        if testing_cooperate_bot:
+            initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_cooperate_bot)
+            create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observation_function,
+                                     reflective_pair_observation_function, agent_a, agent_cooperate_bot)
 
         #as a test, the agents should learn to defect (which is socially optimal with this payoff matrix lol)
         if defection_confection:

@@ -166,48 +166,37 @@ def create_and_write_sim(file_name, initial_state, action_pair_dynamics, full_ob
     run_sim(simulation)
     f.close()
 
-def write_test_sims(initial_model_agent_a, initial_model_agent_b,agent_a,agent_b):
+def write_test_sims(initial_model_agent_a,initial_model_agent_b,agent_a,agent_b, game):
     #writing each 1000-round sim takes about a minute
 
     #standard payoff matrix, initialized to cc
     initial_state = initial_state_maker(1.0, 1.0, initial_model_agent_a[:], initial_model_agent_b[:])
-    create_and_write_sim("init_to_cc", initial_state, action_pair_dynamics, full_observation_function,
+    create_and_write_sim("init_to_dd" + game, initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b)
     #standard payoff matrix initialized to cc
     initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_b[:])
-    create_and_write_sim("init_to_dd",initial_state, action_pair_dynamics, full_observation_function,
+    create_and_write_sim("init_to_cc" + game,initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b)
-    #payoff matrix with dd socially optimal, initialized to cc
 
-def compare_against_written_tests(initial_model_agent_a, initial_model_agent_b,agent_a,agent_b):
-    #TODO: refactor so you don't have duplicated code
-    cc = open("init_to_cc",'r')
-    dd = open("init_to_dd",'r')
+def compare_against_written_tests(initial_model_agent_a, initial_model_agent_b,agent_a,agent_b,game):
+    cc = open("init_to_cc"+game,'r')
+    dd = open("init_to_dd"+game,'r')
 
-    initial_state = initial_state_maker(1.0, 1.0, initial_model_agent_a[:], initial_model_agent_b[:])
-    create_and_write_sim("init_to_cc_update", initial_state, action_pair_dynamics, full_observation_function,
-                              reflective_pair_observation_function, agent_a, agent_b)
-    with open("init_to_cc_update") as cc_update:
-        line_num = 0
-        for cc_update_line in cc_update:
-            cc_line = cc.readline()
-            line_num = line_num + 1
-            if (cc_line != cc_update_line):
-                raise Exception('Discrepancy between init_to_cc and updated run on line __')
-                #^ugh, I'm an exception noob >.<
+    moves = {"dd":{"string":"dd","num":[1.0,1.0]},"cc":{"string":"cc","num":[0.0,0.0]}}
+    for move in moves:
+        initial_state = initial_state_maker(moves[move]["num"][0],moves[move]["num"][1], initial_model_agent_a[:], initial_model_agent_b[:])
+        create_and_write_sim("init_to_"+moves[move]["string"]+"_update", initial_state, action_pair_dynamics, full_observation_function,
+                                  reflective_pair_observation_function, agent_a, agent_b)
+        old_file = open("init_to_"+moves[move]["string"]+game,'r')
+        with open("init_to_"+moves[move]["string"]+"_update") as update:
+            line_num = 0
+            for update_line in update:
+                old_line = old_file.readline()
+                line_num = line_num + 1
+                if (old_line != update_line):
+                    raise Exception("Discrepancy between init_to_"+moves[move]["string"]+"_update and updated run on line __")
+                    #^ugh, I'm an exception noob >.<
     cc.close()
-
-    initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_b[:])
-    create_and_write_sim("init_to_dd_update",initial_state, action_pair_dynamics, full_observation_function,
-                              reflective_pair_observation_function, agent_a, agent_b)
-    dd_update = open("init_to_dd_update",'r')
-    with open("init_to_dd_update") as dd_update:
-        line_num = 0
-        for dd_update_line in dd_update:
-            dd_line = dd.readline()
-            line_num = line_num + 1
-            if (dd_line != dd_update_line):
-                raise Exception('Discrepancy between init_to_dd and updated run on line __')
     dd.close()
 
     print("Tests successful! You haven't broken anything with your most recent update ;)")
@@ -218,9 +207,16 @@ def main():
     initial_model_agent_b = [0.0, 5.0, 0.0]
     prisoners_payoff = [[400.0, 0.0],
                         [401.0, 50.0]]
+    defection_is_magic = [[0.0, 100.0],
+                        [300.0, 500.0]]
     #TODO: Figure out how to pass by value for Christ's sake -- any changes we make to agent_a keep getting perpetuated >.<
     agent_a = make_agent(initial_model_agent_a[:],prisoners_payoff,"Agent A")
     agent_b = make_agent(initial_model_agent_b[:],prisoners_payoff, "Agent B")
+
+    defection_confection = False
+    if defection_confection:
+        agent_a_d = make_agent(initial_model_agent_a[:], defection_is_magic, "Agent A")
+        agent_b_d = make_agent(initial_model_agent_b[:], defection_is_magic, "Agent B")
 
 
     # Setting up tensor flow before running the simulation
@@ -229,9 +225,15 @@ def main():
 
         session.run(model)
         #uncomment write_test_sims() if you want to write a test suite
-        #write_test_sims(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b)
+        #write_test_sims(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
         #uncomment compare_against_written_tests to test consistency
-        #compare_against_written_tests(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b)
+        #compare_against_written_tests(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
+
+        #as a test, the agents should learn to defect (which is socially optimal with this payoff matrix lol)
+        if defection_confection:
+            initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_b[:])
+            create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observation_function,
+                                      reflective_pair_observation_function, agent_a_d, agent_b_d)
 
         initial_state = initial_state_maker(1.0,1.0,initial_model_agent_a[:],initial_model_agent_b[:])
         create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observation_function,

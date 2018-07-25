@@ -18,8 +18,8 @@ def get_mixed_utility_function(mat):
         b = state['opp_action_node']
         #TODO: check that this isn't backwards...
         #TODO: heck, check that changing this does anything o.O. It seems to not be doing anything...
-        pa = [a, 1-a]
-        pb = [b, 1-b]
+        pa = [1-a, a]
+        pb = [1-b, b]
 
         u = 0.0
         for i in range(len(mat)):
@@ -54,12 +54,14 @@ def bound_probabilities(input_node):
 
 def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                      me_observation_model, opp_observation_model, me_update_model, opp_update_model,
-                     initial_state_to_process, max_depth):
+                     initial_state_to_process, max_depth, markov_sim = False):
 
     states = []
     full_states_to_process = [initial_state_to_process]
+    #TODO: (CRITICAL!) Add 'prob': full_state['prob']*prob entry to each full_state -- while respecting pass-by-reference like issues
     #TODO: prevent exponential blowup by taking advantage of Markov property (although this won't work with learning...)
     #TODO: also prevent exponential blowup in learning rate by renormalizing
+    #TODO: Replace this with the exact calculation that involved the matrix inverse (this involves finding the transition matrix)
     for full_state in full_states_to_process:
         state = full_state['state']
         me_cur = full_state['me_model']
@@ -72,14 +74,61 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                 new_state = dyn_model(state, action_me, action_opp)
                 prob = tf.multiply(action_distr_me[action_me], action_distr_opp[action_opp])
                 states.append((new_state, prob))
+                #TODO: avoid exponential blowup using code like the following (but with a better equality check?)
+                """
+                for s in states:
+                    if s[0] == new_state: #hopefully the equality check works >.<
+                        s[1] = s[1] + prob
+                    else:
+                        states.append((new_state, prob))
+                """
+                if (full_state['depth'] < max_depth):
+                    to_possibly_append = {'state': new_state,
+                                                       'me_model': me_update_model(me_cur, me_observation_model(state)),
+                                                       'opp_model': opp_update_model(opp_cur, opp_observation_model(state)),
+                                                       'depth': full_state['depth']+1,
+                                                        }
+                    if (not (markov_sim)):
+                        full_states_to_process.append(to_possibly_append)
+                    else:
+                        for s in full_states_to_process:
+                            if (s['state'] == new_state) and (s['depth'] == full_state['depth']+1):
+                                #increase s['prob']
+                                pass
+                            else:
+                                full_states_to_process.append(to_possibly_append)
 
-                if full_state['depth'] < max_depth:
-                    full_states_to_process.append({'state': new_state,
-                                                   'me_model': me_update_model(me_cur, me_observation_model(state)),
-                                                   'opp_model': opp_update_model(opp_cur, opp_observation_model(state)),
-                                                   'depth': full_state['depth']+1})
 
     return get_utility_of_states(reward_model, states)
+
+#this calculates discounted future utility assuming an MDP with a fixed, memory-1 transition matrix,
+#this transition matrix will then be acted on in a single step of learning
+def get_exact_discounted_utility_node(payoff_matrix, dyn_model, me_model,opp_model,me_observation_model, opp_observation_model,initial_state_to_process):
+    #construct transition matrix
+    # returns vector v with v_xy the value of that state for A (e.g. v_cd is the value of that state for A after both players cooperated)
+    # so to get values for b swap cd with dc and a with b
+    # if we wanted no discounting, then we would solve for the stationary vector
+    # see "Iterated Prisoner's Dilemma contains strategies that dominate any evolutionary opponent"
+    #TODO: maybe refactor for arbitrary matrices (certainly creating T using for loops seems nice)
+    me_cur = initial_state_to_process['me_model']
+    opp_cur = initial_state_to_process['opp_model']
+    #TODO: input properly parameterized observation T.T, also fill out a and b -- otherwise this entire function is garbage
+    a = [me_model((0.0,0.0),me_cur),0.0,0.0,0.0]
+    b = []
+    # first construct the transition matrix (so T_ij = P(i|j), where i could be cd for example)
+    T = [[a[0] * b[0], a[1] * b[2], a[2] * b[1], a[3] * b[3]],
+         [a[0] * (1 - b[0]), a[1] * (1 - b[2]), a[2] * (1 - b[1]), a[3] * (1 - b[3])],
+         [(1 - a[0]) * b[0], (1 - a[1]) * b[2], (1 - a[2]) * b[1], (1 - a[3]) * b[3]],
+         [(1 - a[0]) * (1 - b[0]), (1 - a[1]) * (1 - b[2]), (1 - a[2]) * (1 - b[1]), (1 - a[3]) * (1 - b[3])]]
+
+    # next construct the reward vector associated with the transitions/new states
+    r = tf.reshape(payoff_matrix,(4,1))
+
+    # finally solve the recursion for v (i.e. solve v = gammaT^tv+T^tr)
+    A = tf.diag([1.0, 1.0, 1.0, 1.0]) - tf.multiply(tf.transpose(T), .9)
+    v = tf.matmul(tf.linalg.inv(A), tf.matmul(tf.transpose(T), r))
+
+    return v, T
 
 def make_agent(start_vector, payoff, name, type = "naive gradient"):
     last_me = tf.placeholder(tf.float32)

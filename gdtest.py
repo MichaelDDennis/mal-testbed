@@ -85,18 +85,12 @@ def init_to_TFT_test():
 
 
 def main():
-    testing_titties = True
-    if testing_titties:
-        tit_for_tat_bot_test()
 
-    testing_cooperate_bot = False
-    if testing_cooperate_bot:
-        cooperate_bot_test()
+    tit_for_tat_bot_test()
 
-    #as a test, the agents should learn to defect (which is socially optimal with this payoff matrix lol)
-    defection_confection = False
-    if defection_confection:
-        defection_confection_test()
+    # cooperate_bot_test()
+
+    # defection_confection_test()
 
 
 if __name__ == "__main__":

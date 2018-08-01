@@ -5,6 +5,7 @@ from stream_processing import *
 from copy import deepcopy
 
 # This produces a utility function, from probability distributions to
+# note that we're not actually using this now
 def get_mixed_utility_function(mat):
     def utility_function(state):
 
@@ -45,14 +46,13 @@ def get_utility_of_states(reward, state_list):
 def bound_probabilities(input_node):
     return tf.multiply(tf.tanh(input_node), 0.5)+0.5
 
-
+#TODO: test
 def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                      me_observation_model, opp_observation_model, me_update_model, opp_update_model,
                      initial_state_to_process, max_depth, markov_sim = False):
 
     states = []
     full_states_to_process = [initial_state_to_process]
-    #TODO: (CRITICAL!) Add 'prob': full_state['prob']*prob entry to each full_state -- while respecting pass-by-reference like issues
     #TODO: prevent exponential blowup by taking advantage of Markov property (although this won't work with learning...)
     #TODO: also prevent exponential blowup in learning rate by renormalizing
     #TODO: Replace this with the exact calculation that involved the matrix inverse (this involves finding the transition matrix)
@@ -73,26 +73,27 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
             for action_opp in range(2):
                 new_state = dyn_model(state, action_me, action_opp)
                 prob = tf.multiply(action_distr_me[action_me], action_distr_opp[action_opp])
-                states.append((new_state, prob))
+                states.append((new_state, tf.multiply(full_state['prob'],prob)))
                 #TODO: avoid exponential blowup using code like the following (but with a better equality check?)
                 """
                 for s in states:
                     if compare_state(s[0],new_state): #hopefully the equality check works >.<, naively using == didn't work
-                        s[1] = s[1] + prob
+                        s[1] = s[1] + prob #ugh, illegal because s[1] is a tuple and can't be assigned to I guess
                     else:
-                        states.append((new_state, prob))
+                        states.append([new_state, prob])
                 """
                 if (full_state['depth'] < max_depth):
                     to_possibly_append = {'state': new_state,
                                                        'me_model': me_update_model(me_cur, me_observation_model(state)),
                                                        'opp_model': opp_update_model(opp_cur, opp_observation_model(state)),
                                                        'depth': full_state['depth']+1,
+                                                        'prob': tf.multiply(full_state['prob'],prob)
                                                         }
                     if (not (markov_sim)):
                         full_states_to_process.append(to_possibly_append)
                     else:
                         for s in full_states_to_process:
-                            if (s['state'] == new_state) and (s['depth'] == full_state['depth']+1):
+                            if (compare_state(s['state'], new_state)) and (s['depth'] == full_state['depth']+1):
                                 #increase s['prob']
                                 pass
                             else:
@@ -169,7 +170,7 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient")
         return opp
 
     initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
-    initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0}
+    initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0, 'prob': 1.0}
     u=get_utility_node(get_utility_function_from_payoff(payoff), dyn_model, me_model, opp_model,
                        me_observation_model, opp_observation_model, me_update_model, opp_update_model,
                        initial_state_to_process, 1)

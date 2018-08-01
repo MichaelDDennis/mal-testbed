@@ -86,9 +86,9 @@ def init_to_TFT_test():
 
 def main():
 
-    tit_for_tat_bot_test()
+    # tit_for_tat_bot_test()
 
-    # cooperate_bot_test()
+    cooperate_bot_test()
 
     # defection_confection_test()
 

@@ -165,8 +165,14 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient")
     def me_update_model(me, _):
         return me
 
+    # def opp_utility(me_action,opp_action):
+    #       #calculate utility node for opp
+
     # TODO add opponent update models that are more realistic (gradient descent based)
-    def opp_update_model(opp, _):
+    def opp_update_model(opp, observation):
+        # opp_update = opp_vars+tf.train.GradientDescentOptimizer(0.01).minimize(1-opp_utility(me_model(observation,me_vars)
+        #                                       ,opp_model(observation,opp_vars))), var_list=[opp_vars]).get_gradients()
+        # get_session().run(opp_update, feed_dict=observation)
         return opp
 
     initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
@@ -195,6 +201,26 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient")
         """
         return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(ConstantStrategyAgent(
             get_session, me_model(me_observation_model(initial_state), me), u, me, make_state), name)), get_model)
+
+def make_constant_agent(get_session, start_vector, name):
+    last_me = tf.placeholder(tf.float32)
+    last_opp = tf.placeholder(tf.float32)
+
+    def me_model(me_vars):
+        prob_d = bound_probabilities(tf.multiply(me_vars[0], last_me-0.5) +
+                                     tf.multiply(me_vars[1], last_opp-0.5) + me_vars[2])
+        return [1 - prob_d, prob_d]
+
+    def make_state(observation):
+        return {last_me: observation['last_action_a']['action']['sample'],
+                last_opp: observation['last_action_b']['action']['sample']}
+
+    def get_model():
+        return start_vector
+
+    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(ConstantStrategyAgent(
+        get_session, me_model(start_vector)
+        ,make_state), name)), get_model)
 
 def initial_state_maker(me_action,opp_action,me_model,opp_model):
     return {'last_action_a': {'action': {'sample': me_action, 'distribution': []},

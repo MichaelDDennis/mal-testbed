@@ -32,8 +32,8 @@ def cooperate_bot_test():
     initial_model_agent_a = [0.0, 0.0, -2.0]
     initial_model_agent_cooperate_bot = [0.0, 0.0, -10000.0]
     agent_a = make_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
-    agent_cooperate_bot = make_agent(get_session, initial_model_agent_cooperate_bot, prisoners_payoff,
-                                     "Agent Cooperate Bot", "naive gradient")
+    agent_cooperate_bot = make_constant_agent(get_session, initial_model_agent_cooperate_bot, "Agent Cooperate Bot")
+
     global session
     model = tf.global_variables_initializer()
     with tf.Session() as session:

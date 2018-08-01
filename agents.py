@@ -53,12 +53,10 @@ class GradientDescentBasedAgent(ModelBasedAgent):
 
 class ConstantStrategyAgent(ModelBasedAgent):
     #TODO: get rid of the GradientDescentOptimizer lol
-    def __init__(self, get_session, predict_node, utility_node, params_vars, get_state):
+    def __init__(self, get_session, predict_node, get_state):
         super().__init__()
         self._get_session = get_session
         self._predict_node = predict_node
-        self._update = tf.train.GradientDescentOptimizer(0.01).minimize(0 - utility_node, var_list=[params_vars])
-        self._params = params_vars
         self._get_state = get_state
 
     def update(self, observation_val):

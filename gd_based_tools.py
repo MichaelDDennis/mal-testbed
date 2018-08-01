@@ -63,6 +63,12 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
         action_distr_me = me_model(me_observation_model(state), me_cur)
         action_distr_opp = opp_model(opp_observation_model(state), opp_cur)
 
+        #check that this works :p
+        def compare_state(state_1,state_2):
+            if ((state_1['me_action_node'] == state_2['me_action_node']) and (state_1['opp_action_node'] == state_2['opp_action_node'])):
+                return True
+            else: return False
+
         for action_me in range(2):
             for action_opp in range(2):
                 new_state = dyn_model(state, action_me, action_opp)
@@ -71,7 +77,7 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                 #TODO: avoid exponential blowup using code like the following (but with a better equality check?)
                 """
                 for s in states:
-                    if s[0] == new_state: #hopefully the equality check works >.<
+                    if compare_state(s[0],new_state): #hopefully the equality check works >.<, naively using == didn't work
                         s[1] = s[1] + prob
                     else:
                         states.append((new_state, prob))

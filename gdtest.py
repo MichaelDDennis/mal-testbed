@@ -80,8 +80,8 @@ def init_to_TFT_test():
 #TODO: add double_cooperate_bot_test(), defect_bot_test(), init_to_zero_test() etc.
 #TODO: (old issue, but still good to know) Figure out how to pass by value -- any changes we make to agent_a keep getting perpetuated >.<
 #TODO: add written tests like:
-# #write_test_sims(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
-#compare_against_written_tests(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
+    # #write_test_sims(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
+    #compare_against_written_tests(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
 
 
 def main():

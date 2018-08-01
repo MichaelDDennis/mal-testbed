@@ -6,18 +6,44 @@ from gd_based_tools import *
 from copy import deepcopy
 from testing_tools import *
 
+
 # This is just to serve as a hook to allow for building agents before the session has started
 def get_session():
     return session
 
+
+def bound_probabilities_test():
+    global session
+    prob = tf.placeholder(tf.float32)
+    bound_prob = bound_probabilities(prob)
+
+    model = tf.global_variables_initializer()
+    with tf.Session() as session:
+        session.run(model)
+        bound_prob_val = session.run(bound_prob, feed_dict={prob: 3.0}).item()
+
+        print("The following value should be between 0 and 1: {}".format(bound_prob_val))
+
+        if bound_prob_val < 0:
+            raise Exception("Bounded probability was negative: {}".format(bound_prob_val))
+
+        if bound_prob_val > 1:
+            raise Exception("Bounded probability was above 1: {}".format(bound_prob_val))
+
+        if bound_prob_val != 0.9975273609161377:
+            raise Exception("Bounded probability is not what it used to be: {}".format(bound_prob_val))
+
+
 def defection_confection_test():
+    global session
+
     defection_is_magic = [[0.0, 100.0],
                           [300.0, 500.0]]
     initial_model_agent_a = [0.0, 0.0, -2.0]
     initial_model_agent_b = [0.0, 5.0, 0.0]
     agent_a = make_agent(get_session, initial_model_agent_a[:], defection_is_magic, "Agent A")
     agent_b = make_agent(get_session, initial_model_agent_b[:], defection_is_magic, "Agent B")
-    global session
+
     model = tf.global_variables_initializer()
     with tf.Session() as session:
         session.run(model)
@@ -86,9 +112,11 @@ def init_to_TFT_test():
 
 def main():
 
+    bound_probabilities_test()
+
     # tit_for_tat_bot_test()
 
-    cooperate_bot_test()
+    #cooperate_bot_test()
 
     # defection_confection_test()
 

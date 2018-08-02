@@ -63,11 +63,13 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
         action_distr_me = me_model(me_observation_model(state), me_cur)
         action_distr_opp = opp_model(opp_observation_model(state), opp_cur)
 
-        #check that this works :p
-        def compare_state(state_1,state_2):
-            if ((state_1['me_action_node'] == state_2['me_action_node']) and (state_1['opp_action_node'] == state_2['opp_action_node'])):
-                return True
-            else: return False
+        """
+        if markov_sim:
+            def compare_state(state_1,state_2):
+                if ((state_1['me_action_node'] == state_2['me_action_node']) and (state_1['opp_action_node'] == state_2['opp_action_node'])):
+                    return True
+                else: return False
+        """
 
         for action_me in range(2):
             for action_opp in range(2):
@@ -76,11 +78,12 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                 states.append((new_state, tf.multiply(full_state['prob'],prob)))
                 #TODO: avoid exponential blowup using code like the following (but with a better equality check?)
                 """
-                for s in states:
-                    if compare_state(s[0],new_state): #hopefully the equality check works >.<, naively using == didn't work
-                        s[1] = s[1] + prob #ugh, illegal because s[1] is a tuple and can't be assigned to I guess
-                    else:
-                        states.append([new_state, prob])
+                if markov_sim:
+                    for s in states:
+                        if compare_state(s[0],new_state): #hopefully the equality check works >.<, naively using == didn't work
+                            s[1] = s[1] + prob #ugh, illegal because s[1] is a tuple and can't be assigned to I guess
+                        else:
+                            states.append([new_state, prob])
                 """
                 if (full_state['depth'] < max_depth):
                     to_possibly_append = {'state': new_state,
@@ -91,6 +94,7 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                                                         }
                     if (not (markov_sim)):
                         full_states_to_process.append(to_possibly_append)
+                    """
                     else:
                         for s in full_states_to_process:
                             if (compare_state(s['state'], new_state)) and (s['depth'] == full_state['depth']+1):
@@ -98,7 +102,7 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                                 pass
                             else:
                                 full_states_to_process.append(to_possibly_append)
-
+                    """
 
     return get_utility_of_states(reward_model, states)
 
@@ -134,7 +138,26 @@ def get_exact_discounted_utility_node(payoff_matrix, dyn_model, me_model,opp_mod
 
     return v, T
 
-def make_agent(get_session, start_vector, payoff, name, type = "naive gradient"):
+
+# We can always add a random player, dynamics can be deterministic
+def action_pair_dyn_model(_, me_action, them_action):
+    return {'me_action_node': me_action, 'opp_action_node': them_action}
+
+def simple_agent_model(observation, me_vars):
+    prob_d = bound_probabilities(tf.multiply(me_vars[0], observation['me_action_node']-0.5) +
+                                 tf.multiply(me_vars[1], observation['opp_action_node']-0.5) + me_vars[2])
+    return [1 - prob_d, prob_d]
+
+def transparent_observation_model(state):
+    return state
+
+def reverse_observation_model(state):
+    return {'me_action_node': state['opp_action_node'], 'opp_action_node': state['me_action_node']}
+
+def empty_update_model(me, _):
+    return me
+
+def make_agent(get_session, start_vector, payoff, name, type = "naive gradient", test = False):
     last_me = tf.placeholder(tf.float32)
     last_opp = tf.placeholder(tf.float32)
     opp = tf.placeholder(tf.float32, (3,))
@@ -142,44 +165,31 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient")
 
     # TODO add an easy way to build "complete" policy spaces
 
-    def me_model(observation, me_vars):
-        prob_d = bound_probabilities(tf.multiply(me_vars[0], observation['me_action_node']-0.5) +
-                                     tf.multiply(me_vars[1], observation['opp_action_node']-0.5) + me_vars[2])
-        return [1 - prob_d, prob_d]
 
-    def opp_model(observation, opp_vars):
-        prob_d = bound_probabilities(tf.multiply(opp_vars[0], observation['me_action_node']-0.5) +
-                                     tf.multiply(opp_vars[1], observation['opp_action_node']-0.5) + opp_vars[2])
-        return [1 - prob_d, prob_d]
 
-    # We can always add a random player, dynamics can be deterministic
-    def dyn_model(_, me_action, them_action):
-        return {'me_action_node': me_action, 'opp_action_node': them_action}
 
-    def me_observation_model(state):
-        return state
 
-    def opp_observation_model(state):
-        return {'me_action_node': state['opp_action_node'], 'opp_action_node': state['me_action_node']}
 
-    def me_update_model(me, _):
-        return me
+
+
+
+
 
     # def opp_utility(me_action,opp_action):
     #       #calculate utility node for opp
 
     # TODO add opponent update models that are more realistic (gradient descent based)
-    def opp_update_model(opp, observation):
+    #def opp_update_model(opp, observation):
         # opp_update = opp_vars+tf.train.GradientDescentOptimizer(0.01).minimize(1-opp_utility(me_model(observation,me_vars)
         #                                       ,opp_model(observation,opp_vars))), var_list=[opp_vars]).get_gradients()
         # get_session().run(opp_update, feed_dict=observation)
-        return opp
+      #  return opp
 
     initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
     initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0, 'prob': 1.0}
-    u=get_utility_node(get_utility_function_from_payoff(payoff), dyn_model, me_model, opp_model,
-                       me_observation_model, opp_observation_model, me_update_model, opp_update_model,
-                       initial_state_to_process, 1)
+    u=get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model, simple_agent_model,
+                       transparent_observation_model, reverse_observation_model, empty_update_model, empty_update_model,
+                       initial_state_to_process, 1, False)
 
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking
@@ -192,15 +202,11 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient")
 
     if (type == "naive gradient"):
         return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDescentBasedAgent(
-            get_session, me_model(me_observation_model(initial_state), me), u, me, make_state), name)), get_model)
-    elif (type == "titty"):
-        #TODO: consider *genuinely* constant parameterizations like the following:
-        """
-        def me_model(observation, _):
-            return [1 - observation['opp_action_node'], observation['opp_action_node']]
-        """
-        return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(ConstantStrategyAgent(
-            get_session, me_model(me_observation_model(initial_state), me), u, me, make_state), name)), get_model)
+            get_session, simple_agent_model(transparent_observation_model(initial_state), me), u, me, make_state), name)), get_model)
+
+    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(ConstantStrategyAgent(
+        get_session, simple_agent_model(transparent_observation_model(initial_state), me), u, me, make_state), name)), get_model)
+
 
 def make_constant_agent(get_session, start_vector, name):
     last_me = tf.placeholder(tf.float32)

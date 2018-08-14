@@ -1,16 +1,20 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from typing import TypeVar, Generic
 import tensorflow as tf
 import numpy as np
+
+Observation = TypeVar("Observation")
+Action = TypeVar("Action")
 
 
 # The purpose of this class is to serve as an interface for the simulation function.  It probably will never need to
 # be changed, but will probably be sub-classed many times.
-class Agent(ABC):
+class Agent(Generic[Observation, Action]):
     def __init__(self):
         pass
 
     @abstractmethod
-    def get_action(self, observation):
+    def get_action(self, observation: Observation) -> Action:
         raise Exception('The action function needs to be overridden')
 
 
@@ -51,8 +55,8 @@ class GradientDescentBasedAgent(ModelBasedAgent):
         action_val = self._get_session().run(self._predict_node, feed_dict=self._get_state(observation_val))
         return action_val
 
+
 class ConstantStrategyAgent(ModelBasedAgent):
-    #TODO: get rid of the GradientDescentOptimizer lol
     def __init__(self, get_session, predict_node, get_state):
         super().__init__()
         self._get_session = get_session

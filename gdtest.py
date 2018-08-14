@@ -1,9 +1,4 @@
 import tensorflow as tf
-from simulation import simulate, action_pair_dynamics, full_observation_function, reflective_pair_observation_function
-from agents import *
-from stream_processing import *
-from gd_based_tools import *
-from copy import deepcopy
 from testing_tools import *
 
 
@@ -215,9 +210,9 @@ def main():
 
     # get_utility_node_test()
 
-     tit_for_tat_bot_test()
+    # tit_for_tat_bot_test()
 
-    # cooperate_bot_test()
+    cooperate_bot_test()
 
     # defection_confection_test()
 

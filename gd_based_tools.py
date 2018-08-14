@@ -1,8 +1,6 @@
-import tensorflow as tf
-from simulation import simulate, action_pair_dynamics, full_observation_function, reflective_pair_observation_function
 from agents import *
-from stream_processing import *
-from copy import deepcopy
+from simulation import *
+import tensorflow as tf
 
 # This produces a utility function, from probability distributions to
 # note that we're not actually using this now
@@ -193,9 +191,10 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient",
 
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking
-    def make_state(observation):
-        return {opp: observation['last_action_b']['model'], last_me: observation['last_action_a']['action']['sample'],
-                last_opp: observation['last_action_b']['action']['sample']}
+    def make_state(observation: ActionPairObservation):
+        return {opp: observation.get_last_opp_action()['model'],
+                last_me: observation.get_last_me_action()['action']['sample'],
+                last_opp: observation.get_last_opp_action()['action']['sample']}
 
     def get_model():
         return get_session().run(me)
@@ -217,9 +216,9 @@ def make_constant_agent(get_session, start_vector, name):
                                      tf.multiply(me_vars[1], last_opp-0.5) + me_vars[2])
         return [1 - prob_d, prob_d]
 
-    def make_state(observation):
-        return {last_me: observation['last_action_a']['action']['sample'],
-                last_opp: observation['last_action_b']['action']['sample']}
+    def make_state(observation: ActionPairObservation):
+        return {last_me: observation.get_last_me_action()['action']['sample'],
+                last_opp: observation.get_last_opp_action()['action']['sample']}
 
     def get_model():
         return start_vector
@@ -229,7 +228,76 @@ def make_constant_agent(get_session, start_vector, name):
         ,make_state), name)), get_model)
 
 def initial_state_maker(me_action,opp_action,me_model,opp_model):
-    return {'last_action_a': {'action': {'sample': me_action, 'distribution': []},
-                                           'model': me_model},
-                         'last_action_b': {'action': {'sample': opp_action, 'distribution': []},
-                                           'model': opp_model}}
+    return ActionPairState({'action': {'sample': me_action, 'distribution': []},
+                                           'model': me_model}, {'action': {'sample': opp_action, 'distribution': []},
+                                           'model': opp_model})
+
+
+
+# # By convention TensorFlowWrapperNodes will be immutable.  The underlying node should never change.
+# class TensorFlowWrapperNode():
+#
+#
+#     # Get the children tensor flow node wrappers for pretty print
+#     def get_children(self):
+#         pass
+#
+#
+#     # Make sure they make string work
+#     def ___str__(self):
+#         pass
+#
+#
+#     # Gives a function that will get the current values of this node given a session
+#     def get_current_value_function(self):
+#         pass
+#
+#
+#     # Get the tensor flow node that this is wrapping
+#     def get_tensor_flow_node(self):
+#         pass
+#
+#
+#     # Gets a list of tensor flow input nodes on which this nodes computation depends.
+#     def get_placeholder_dependencies(self):
+#         pass
+
+
+
+
+# class ObservationNode():
+#     pass
+#
+#
+# class ActionNode():
+#     pass
+#
+#
+# class AgentNode():
+#     pass
+#
+#
+# class PredictionNode():
+#     pass
+#
+#
+# class MemoryNode():
+#     pass
+#
+#
+# class StateNode():
+#     pass
+#
+#
+# class UpdateNode():
+#     def __init__(self, memoryNode : MemoryNode, update):
+#
+#     pass
+
+
+
+
+
+
+
+

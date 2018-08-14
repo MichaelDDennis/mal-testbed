@@ -1,4 +1,18 @@
 from agents import Agent
+from typing import TypeVar, Generator, Callable, Generic
+
+
+# State = NewType("State", object)
+# X_Action = NewType("X_Action", object)
+# Y_Action = NewType("Y_Action", object)
+# X_Observation = NewType("X_Observation", object)
+# Y_Observation = NewType("Y_Observation", object)
+
+State = TypeVar("State")
+X_Action = TypeVar("X_Action")
+Y_Action = TypeVar("Y_Action")
+X_Observation = TypeVar("X_Observation")
+Y_Observation = TypeVar("Y_Observation")
 
 
 # Simulate is the Main function we will be studying, the structure here is meant to force isolation between
@@ -21,31 +35,59 @@ from agents import Agent
 # A: Agent
 # B: Agent
 #
-def simulate(initial_state, dynamics, observation_function_a, observation_function_b,
-             agent_a: Agent, agent_b: Agent):
-    # Normal TensorFlow - initialize values, create a session and run the model
-    state = initial_state
+def simulate(initial_state: State, dynamics: Callable[[State, X_Action, Y_Action], State],
+             x_observation_function: Callable[[State], X_Observation],
+             y_observation_function: Callable[[State], Y_Observation],
+             x_agent: Agent[X_Observation, X_Action],
+             y_agent: Agent[Y_Observation, Y_Action]) -> Generator[State, None, None]:
 
+    state = initial_state
     for i in range(1000):
-        action_b = agent_b.get_action(observation_function_b(state))
-        action_a = agent_a.get_action(observation_function_a(state))
+        action_b = y_agent.get_action(y_observation_function(state))
+        action_a = x_agent.get_action(x_observation_function(state))
 
         state = dynamics(state, action_a, action_b)
 
         yield state
 
 
+class ActionPairState(Generic[X_Action, Y_Action]):
+
+    def __init__(self, x_action_in: X_Action, y_action_in: Y_Action) -> None:
+        self.x_action = x_action_in
+        self.y_action = y_action_in
+
+    def get_last_x_action(self):
+        return self.x_action
+
+    def get_last_y_action(self):
+        return self.y_action
+
+
+class ActionPairObservation(Generic[X_Action, Y_Action]):
+
+    def __init__(self, x_action_in: X_Action, y_action_in: Y_Action) -> None:
+        self.x_action = x_action_in
+        self.y_action = y_action_in
+
+    def get_last_me_action(self):
+        return self.x_action
+
+    def get_last_opp_action(self):
+        return self.y_action
+
+
 # State Dynamics which do not depend on the last state, and give a unique state for every action pair
-def action_pair_dynamics(_, last_action_a, last_action_b):
-    return {'last_action_a': last_action_a, 'last_action_b': last_action_b}
+def action_pair_dynamics(_, last_action_a: X_Action, last_action_b: Y_Action) -> ActionPairState[X_Action, Y_Action]:
+    return ActionPairState(last_action_a, last_action_b)
 
 
 # Observation Function for Fully Observable Environments
-def full_observation_function(state):
-    return state
+def full_observation_function(state: ActionPairState[X_Action, Y_Action]) -> ActionPairObservation[X_Action, Y_Action]:
+    return ActionPairObservation(state.x_action, state.y_action)
 
 
 # Reflects the observation so that the game is symmetric
-def reflective_pair_observation_function(state):
-    res = {'last_action_a': state['last_action_b'], 'last_action_b': state['last_action_a']}
-    return res
+def reflective_pair_observation_function(state: ActionPairState[X_Action, Y_Action]) \
+                                         -> ActionPairObservation[Y_Action, X_Action]:
+    return ActionPairObservation(state.y_action, state.x_action)

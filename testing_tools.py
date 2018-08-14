@@ -1,12 +1,11 @@
-from simulation import *
-from stream_processing import *
 from gd_based_tools import *
+from stream_processing import *
 
 def create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b):
 
     simulation = simulate(initial_state, action_pair_dynamics, full_observation_function,
-                              reflective_pair_observation_function, agent_a, agent_b)
+                          reflective_pair_observation_function, agent_a, agent_b)
     simulation = print_count(simulation)
     simulation = slow_sim_decorator(simulation, 1)
     simulation = print_actions(simulation)

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Callable
 import tensorflow as tf
 import numpy as np
 
@@ -19,7 +19,7 @@ class Agent(Generic[Observation, Action]):
 
 
 # This class is simply for convenience, so you can make agents based on the more natural update/predict breakdown.
-class ModelBasedAgent(Agent):
+class ModelBasedAgent(Agent[Observation, Action]):
 
     def __init__(self):
         super().__init__()
@@ -39,7 +39,7 @@ class ModelBasedAgent(Agent):
 
 # This class implements the above interfaces so it can be used in simulations.  It takes responsibility for building the
 # update mechanism and running it at the appropriate times, but must be given the appropriate computation graphs
-class GradientDescentBasedAgent(ModelBasedAgent):
+class GradientDescentBasedAgent(ModelBasedAgent[Observation, Action]):
     def __init__(self, get_session, predict_node, utility_node, params_vars, get_state):
         super().__init__()
         self._get_session = get_session
@@ -56,7 +56,7 @@ class GradientDescentBasedAgent(ModelBasedAgent):
         return action_val
 
 
-class ConstantStrategyAgent(ModelBasedAgent):
+class ConstantStrategyAgent(ModelBasedAgent[Observation, Action]):
     def __init__(self, get_session, predict_node, get_state):
         super().__init__()
         self._get_session = get_session
@@ -71,16 +71,33 @@ class ConstantStrategyAgent(ModelBasedAgent):
         return action_val
 
 
+Model = TypeVar("Model")
+
+
+class ModelActionPair(Generic[Model, Action]):
+
+    def __init__(self, model_in: Model, action_in: Action) -> None:
+        self.model = model_in
+        self.action = action_in
+
+    def get_model(self) -> Model:
+        return self.model
+
+    def get_action(self) -> Action:
+        return self.action
+
+
 # This class is a wrapper around agents that makes them pair their models with whatever action they take.  This forces
 # them to be transparent as the other agent can read their model from their observations.
-class TransparentAgentDecorator(Agent):
-    def __init__(self, agent, get_model):
+class TransparentAgentDecorator(Generic[Observation, Action, Model],
+                                Agent[Observation, ModelActionPair[Model, Action]]):
+    def __init__(self, agent: Agent[Observation, Action], get_model: Callable[[], Model]) -> None:
         super().__init__()
         self._agent = agent
         self._get_model = get_model
 
-    def get_action(self, observation):
-        return {'action': self._agent.get_action(observation), 'model': self._get_model()}
+    def get_action(self, observation: Observation) -> ModelActionPair[Model, Action]:
+        return ModelActionPair(self._get_model(), self._agent.get_action(observation))
 
 
 def sample(distribution):

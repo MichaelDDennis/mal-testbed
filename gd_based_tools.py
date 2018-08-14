@@ -191,10 +191,10 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient",
 
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking
-    def make_state(observation: ActionPairObservation):
-        return {opp: observation.get_last_opp_action()['model'],
-                last_me: observation.get_last_me_action()['action']['sample'],
-                last_opp: observation.get_last_opp_action()['action']['sample']}
+    def make_state(observation: ActionPairObservation[ModelActionPair,ModelActionPair]):
+        return {opp: observation.get_last_opp_action().get_model(),
+                last_me: observation.get_last_me_action().get_action()['sample'],
+                last_opp: observation.get_last_opp_action().get_action()['sample']}
 
     def get_model():
         return get_session().run(me)
@@ -216,9 +216,9 @@ def make_constant_agent(get_session, start_vector, name):
                                      tf.multiply(me_vars[1], last_opp-0.5) + me_vars[2])
         return [1 - prob_d, prob_d]
 
-    def make_state(observation: ActionPairObservation):
-        return {last_me: observation.get_last_me_action()['action']['sample'],
-                last_opp: observation.get_last_opp_action()['action']['sample']}
+    def make_state(observation: ActionPairObservation[ModelActionPair, ModelActionPair]):
+        return {last_me: observation.get_last_me_action().get_action()['sample'],
+                last_opp: observation.get_last_opp_action().get_action()['sample']}
 
     def get_model():
         return start_vector
@@ -227,10 +227,10 @@ def make_constant_agent(get_session, start_vector, name):
         get_session, me_model(start_vector)
         ,make_state), name)), get_model)
 
-def initial_state_maker(me_action,opp_action,me_model,opp_model):
-    return ActionPairState({'action': {'sample': me_action, 'distribution': []},
-                                           'model': me_model}, {'action': {'sample': opp_action, 'distribution': []},
-                                           'model': opp_model})
+
+def initial_state_maker(me_action, opp_action, me_model, opp_model):
+    return ActionPairState(ModelActionPair(me_model, {'sample': me_action, 'distribution': []}),
+                           ModelActionPair(opp_model, {'sample': opp_action, 'distribution': []}))
 
 
 

@@ -1,6 +1,7 @@
 import time
 from typing import TypeVar, Iterator, Generator
 from simulation import ActionPairState
+from agents import ModelActionPair
 
 T = TypeVar("T")
 
@@ -26,47 +27,53 @@ def run_sim(simulation: Iterator[T]) -> None:
         pass
 
 
-def print_actions(simulation: Iterator[ActionPairState]) -> Generator[ActionPairState, None, None]:
+def print_actions(simulation: Iterator[ActionPairState[ModelActionPair, ModelActionPair]]) \
+                  -> Generator[ActionPairState[ModelActionPair, ModelActionPair], None, None]:
     for s in simulation:
-        print("Actions were: ({},{})".format(s.get_last_x_action()['action']['sample'],
-                                             s.get_last_y_action()['action']['sample']))
+        print("Actions were: ({},{})".format(s.get_last_x_action().get_action()['sample'],
+                                             s.get_last_y_action().get_action()['sample']))
         yield s
 
 
-def write_actions(simulation: Iterator[ActionPairState], file) -> Generator[ActionPairState, None, None]:
+def write_actions(simulation: Iterator[ActionPairState[ModelActionPair, ModelActionPair]], file) \
+                  -> Generator[ActionPairState[ModelActionPair, ModelActionPair], None, None]:
     for s in simulation:
-        file.write("Actions were: ({},{})".format(s.get_last_x_action()['action']['sample'],
-                                                  s.get_last_y_action()['action']['sample']))
+        file.write("Actions were: ({},{})".format(s.get_last_x_action().get_action()['sample'],
+                                                  s.get_last_y_action().get_action()['sample']))
         file.write("\n")
         yield s
 
 
-def print_distributions(simulation: Iterator[ActionPairState]) -> Generator[ActionPairState, None, None]:
+def print_distributions(simulation: Iterator[ActionPairState[ModelActionPair, ModelActionPair]]) \
+                        -> Generator[ActionPairState[ModelActionPair, ModelActionPair], None, None]:
     for s in simulation:
-        print("Action Distributions were: ({},{})".format(s.get_last_x_action()['action']['distribution'],
-                                                          s.get_last_y_action()['action']['distribution']))
+        print("Action Distributions were: ({},{})".format(s.get_last_x_action().get_action()['distribution'],
+                                                          s.get_last_y_action().get_action()['distribution']))
         yield s
 
 
-def write_distributions(simulation: Iterator[ActionPairState], file) -> Generator[ActionPairState, None, None]:
+def write_distributions(simulation: Iterator[ActionPairState[ModelActionPair, ModelActionPair]], file) \
+                        -> Generator[ActionPairState[ModelActionPair, ModelActionPair], None, None]:
     for s in simulation:
-        file.write("Action Distributions were: ({},{})".format(s.get_last_x_action()['action']['distribution'],
-                                                               s.get_last_y_action()['action']['distribution']))
+        file.write("Action Distributions were: ({},{})".format(s.get_last_x_action().get_action()['distribution'],
+                                                               s.get_last_y_action().get_action()['distribution']))
         file.write("\n")
         yield s
 
 
-def print_model(simulation: Iterator[ActionPairState]) -> Generator[ActionPairState, None, None]:
+def print_model(simulation: Iterator[ActionPairState[ModelActionPair, ModelActionPair]]) \
+                -> Generator[ActionPairState[ModelActionPair, ModelActionPair], None, None]:
     for s in simulation:
-        print("Model Parameters were: ({},{})".format(s.get_last_x_action()['model'],
-                                                      s.get_last_y_action()['model']))
+        print("Model Parameters were: ({},{})".format(s.get_last_x_action().get_model(),
+                                                      s.get_last_y_action().get_model()))
         yield s
 
 
-def write_model(simulation: Iterator[ActionPairState], file) -> Generator[ActionPairState, None, None]:
+def write_model(simulation: Iterator[ActionPairState[ModelActionPair, ModelActionPair]], file) \
+                -> Generator[ActionPairState[ModelActionPair, ModelActionPair], None, None]:
     for s in simulation:
-        file.write("Model Parameters were: ({},{})".format(s.get_last_x_action()['model'],
-                                                           s.get_last_y_action()['model']))
+        file.write("Model Parameters were: ({},{})".format(s.get_last_x_action().get_model(),
+                                                           s.get_last_y_action().get_model()))
         file.write("\n")
         yield s
 

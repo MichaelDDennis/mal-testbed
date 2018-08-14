@@ -107,7 +107,6 @@ def sample(distribution):
         running_sum = running_sum + distribution[i]
         if running_sum > r:
             return i
-    return len(distribution)-1
 
 
 Distribution = TypeVar("Distribution")

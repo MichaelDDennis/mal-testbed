@@ -10,8 +10,6 @@ def get_mixed_utility_function(mat):
 
         a = state['me_action_node']
         b = state['opp_action_node']
-        #TODO: check that this isn't backwards...
-        #TODO: heck, check that changing this does anything o.O. It seems to not be doing anything...
         pa = [1-a, a]
         pb = [1-b, b]
 
@@ -45,7 +43,9 @@ def get_utility_of_states(reward, state_list):
 def bound_probabilities(input_node):
     return tf.multiply(tf.tanh(input_node), 0.5)+0.5
 
-#TODO: test
+# Reward Model (Function that takes in state and outputs reward)
+# dyn_model (How states change)
+# me_model (How I
 def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                      me_observation_model, opp_observation_model, me_update_model, opp_update_model,
                      initial_state_to_process, max_depth, markov_sim = False):
@@ -186,12 +186,10 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient",
 
     initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
     initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0, 'prob': 1.0}
-    u=get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model, simple_agent_model,
+    u = get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model, simple_agent_model,
                        transparent_observation_model, reverse_observation_model, empty_update_model, empty_update_model,
                        initial_state_to_process, 1, False)
 
-    # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
-    # TODO add type checking
     def make_state(observation: ActionPairObservation[ModelActionPair[Any, ActionDistributionPair],
                                                       ModelActionPair[Any, ActionDistributionPair]]):
         return {opp: observation.get_last_opp_action().get_model(),
@@ -233,7 +231,7 @@ def make_constant_agent(get_session, start_vector, name):
 
 def initial_state_maker(me_action, opp_action, me_model, opp_model):
     return ActionPairState(ModelActionPair(me_model, ActionDistributionPair(me_action, [])),
-                           ModelActionPair(opp_model, ActionDistributionPair(opp_action,[])))
+                           ModelActionPair(opp_model, ActionDistributionPair(opp_action, [])))
 
 
 

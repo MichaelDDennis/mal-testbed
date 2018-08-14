@@ -53,7 +53,7 @@ def get_utility_node_test_helper(a_params,b_params, depth=0):
 
 
     # initial_model_agent_a = [.25, 0.5, -.3333333]
-    # initial_model_agent_titty = [.125, 0.25, -.166666666]
+    # initial_model_agent_tit_for_tat = [.125, 0.25, -.166666666]
 
 
     last_me = tf.placeholder(tf.float32)
@@ -72,13 +72,13 @@ def get_utility_node_test_helper(a_params,b_params, depth=0):
     # u_a_tensor_elts = []
     # for i in range(len(u_a)):
     #     u_a_tensor_elts.append(tf.Variable(u_a[i]))
-    #agent_titty = make_agent(get_session, initial_model_agent_titty, prisoners_payoff, "Agent Titty")
+    #agent_tit_for_tat = make_agent(get_session, initial_model_agent_tit_for_tat, prisoners_payoff, "Agent tit_for_tat")
 
     model = tf.global_variables_initializer()
     with tf.Session() as session:
         session.run(model)
 
-        # initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_titty)
+        # initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_tit_for_tat)
         # p = session.run(prisoners_payoff)
         # print(p)
         # u_a_0_val = session.run(u_a[0])
@@ -92,10 +92,10 @@ def get_utility_node_test_helper(a_params,b_params, depth=0):
         #recreate simulation code for fine-grained testing
         state = initial_state
         for i in range(1000):
-            action_titty = agent_titty.get_action(full_observation_function(state))
+            action_tit_for_tat = agent_tit_for_tat.get_action(full_observation_function(state))
             action_a = agent_a.get_action(full_observation_function(state))
 
-            state = action_pair_dynamics(state, action_a, action_titty)
+            state = action_pair_dynamics(state, action_a, action_tit_for_tat)
 
             yield state
         """
@@ -167,18 +167,18 @@ def tit_for_tat_bot_test():
     prisoners_payoff = [[400.0, 0.0],
                         [401.0, 50.0]]
     initial_model_agent_a = [0.0, 0.0, -2.0]
-    initial_model_agent_titty = [0.0, 1000000.0, 0.0]
+    initial_model_agent_tit_for_tat = [0.0, 1000000.0, 0.0]
     agent_a = make_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
-    agent_titty = make_agent(get_session, initial_model_agent_titty, prisoners_payoff, "Agent Titty")
+    agent_tit_for_tat = make_agent(get_session, initial_model_agent_tit_for_tat, prisoners_payoff, "Agent tit_for_tat")
     global session
     model = tf.global_variables_initializer()
     with tf.Session() as session:
         session.run(model)
 
-        # TODO: Get ConstantStrategyAgent to actually work >.<, so that you can call agent_titty = make_agent(get_session, initial_model_agent_tits, prisoners_payoff, "Agent Tits", "titty")
-        initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_titty)
+        # TODO: Get ConstantStrategyAgent to actually work >.<, so that you can call agent_tit_for_tat = make_agent(get_session, initial_model_agent_tits, prisoners_payoff, "Agent Tits", "tit_for_tat")
+        initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_tit_for_tat)
         create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observation_function,
-                                  reflective_pair_observation_function, agent_a, agent_titty)
+                                  reflective_pair_observation_function, agent_a, agent_tit_for_tat)
 
 def init_to_TFT_test():
     prisoners_payoff = [[400.0, 0.0],
@@ -187,7 +187,7 @@ def init_to_TFT_test():
     initial_model_agent_b = [0.0, 1000000.0, 0.0]
     agent_a = make_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
     agent_b = make_agent(get_session, initial_model_agent_b, prisoners_payoff, "Agent B")
-    # TODO: Get ConstantStrategyAgent to actually work >.<, so that you can call agent_titty = make_agent(get_session, initial_model_agent_tits, prisoners_payoff, "Agent Tits", "titty")
+    # TODO: Get ConstantStrategyAgent to actually work >.<, so that you can call agent_tit_for_tat = make_agent(get_session, initial_model_agent_tits, prisoners_payoff, "Agent Tits", "tit_for_tat")
     global session
     model = tf.global_variables_initializer()
     with tf.Session() as session:

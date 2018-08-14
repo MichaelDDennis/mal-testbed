@@ -21,19 +21,19 @@ class Agent(Generic[Observation, Action]):
 # This class is simply for convenience, so you can make agents based on the more natural update/predict breakdown.
 class ModelBasedAgent(Agent[Observation, Action]):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def get_action(self, observation):
+    def get_action(self, observation: Observation) -> Action:
         self.update(observation)
         return self.predict(observation)
 
     @abstractmethod
-    def update(self, observation):
+    def update(self, observation: Observation) -> None:
         raise Exception('The update function needs to be overridden')
 
     @abstractmethod
-    def predict(self, observation):
+    def predict(self, observation: Observation) -> Action:
         raise Exception('The predict function needs to be overridden')
 
 
@@ -48,10 +48,10 @@ class GradientDescentBasedAgent(ModelBasedAgent[Observation, Action]):
         self._params = params_vars
         self._get_state = get_state
 
-    def update(self, observation_val):
+    def update(self, observation_val: Observation) -> None:
         self._get_session().run(self._update, feed_dict=self._get_state(observation_val))
 
-    def predict(self, observation_val):
+    def predict(self, observation_val: Observation) -> Action:
         action_val = self._get_session().run(self._predict_node, feed_dict=self._get_state(observation_val))
         return action_val
 
@@ -63,10 +63,10 @@ class ConstantStrategyAgent(ModelBasedAgent[Observation, Action]):
         self._predict_node = predict_node
         self._get_state = get_state
 
-    def update(self, observation_val):
+    def update(self, observation_val: Observation) -> None:
         pass
 
-    def predict(self, observation_val):
+    def predict(self, observation_val: Observation) -> Action:
         action_val = self._get_session().run(self._predict_node, feed_dict=self._get_state(observation_val))
         return action_val
 
@@ -137,15 +137,15 @@ class SamplingAgentDecorator(Generic[Observation, Distribution],
         return ActionDistributionPair(sample(action_distribution), action_distribution)
 
 
-class NameAgentDecorator(Agent):
+class NameAgentDecorator(Agent[Observation, Action]):
 
-    def __init__(self, agent, name):
+    def __init__(self, agent: Agent[Observation, Action], name: str) -> None:
         super().__init__()
         self._name = name
         self._agent = agent
 
-    def get_action(self, observation):
+    def get_action(self, observation: Observation) -> Action:
         return self._agent.get_action(observation)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._name

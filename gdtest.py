@@ -212,9 +212,9 @@ def main():
 
     # tit_for_tat_bot_test()
 
-    # cooperate_bot_test()
+    cooperate_bot_test()
 
-     defection_confection_test()
+    # defection_confection_test()
 
 
 if __name__ == "__main__":

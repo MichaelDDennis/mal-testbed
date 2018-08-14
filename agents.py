@@ -110,14 +110,31 @@ def sample(distribution):
     return len(distribution)-1
 
 
-class SamplingAgentDecorator(Agent):
-    def __init__(self, agent):
+Distribution = TypeVar("Distribution")
+
+
+class ActionDistributionPair(Generic[Action, Distribution]):
+
+    def __init__(self, action_in: Action, distribution_in: Distribution) -> None:
+        self.action = action_in
+        self.distribution = distribution_in
+
+    def get_action(self) -> Action:
+        return self.action
+
+    def get_distribution(self) -> Distribution:
+        return self.distribution
+
+
+class SamplingAgentDecorator(Generic[Observation, Distribution],
+                             Agent[Observation, ActionDistributionPair[int, Distribution]]):
+    def __init__(self, agent: Agent[Observation, Distribution]) -> None:
         super().__init__()
         self._agent = agent
 
-    def get_action(self, observation):
+    def get_action(self, observation: Observation) -> ActionDistributionPair[int, Distribution]:
         action_distribution = self._agent.get_action(observation)
-        return {"sample": sample(action_distribution), "distribution": action_distribution}
+        return ActionDistributionPair(sample(action_distribution), action_distribution)
 
 
 class NameAgentDecorator(Agent):

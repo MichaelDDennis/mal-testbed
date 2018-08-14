@@ -1,6 +1,7 @@
 from agents import *
 from simulation import *
 import tensorflow as tf
+from typing import Any
 
 # This produces a utility function, from probability distributions to
 # note that we're not actually using this now
@@ -191,10 +192,11 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient",
 
     # TODO Make actions and observations into objects so you don't have to keep passing around hash maps
     # TODO add type checking
-    def make_state(observation: ActionPairObservation[ModelActionPair,ModelActionPair]):
+    def make_state(observation: ActionPairObservation[ModelActionPair[Any, ActionDistributionPair],
+                                                      ModelActionPair[Any, ActionDistributionPair]]):
         return {opp: observation.get_last_opp_action().get_model(),
-                last_me: observation.get_last_me_action().get_action()['sample'],
-                last_opp: observation.get_last_opp_action().get_action()['sample']}
+                last_me: observation.get_last_me_action().get_action().get_action(),
+                last_opp: observation.get_last_opp_action().get_action().get_action()}
 
     def get_model():
         return get_session().run(me)
@@ -216,9 +218,10 @@ def make_constant_agent(get_session, start_vector, name):
                                      tf.multiply(me_vars[1], last_opp-0.5) + me_vars[2])
         return [1 - prob_d, prob_d]
 
-    def make_state(observation: ActionPairObservation[ModelActionPair, ModelActionPair]):
-        return {last_me: observation.get_last_me_action().get_action()['sample'],
-                last_opp: observation.get_last_opp_action().get_action()['sample']}
+    def make_state(observation: ActionPairObservation[ModelActionPair[Any, ActionDistributionPair],
+                                                      ModelActionPair[Any, ActionDistributionPair]]):
+        return {last_me: observation.get_last_me_action().get_action().get_action(),
+                last_opp: observation.get_last_opp_action().get_action().get_action()}
 
     def get_model():
         return start_vector
@@ -229,8 +232,8 @@ def make_constant_agent(get_session, start_vector, name):
 
 
 def initial_state_maker(me_action, opp_action, me_model, opp_model):
-    return ActionPairState(ModelActionPair(me_model, {'sample': me_action, 'distribution': []}),
-                           ModelActionPair(opp_model, {'sample': opp_action, 'distribution': []}))
+    return ActionPairState(ModelActionPair(me_model, ActionDistributionPair(me_action, [])),
+                           ModelActionPair(opp_model, ActionDistributionPair(opp_action,[])))
 
 
 

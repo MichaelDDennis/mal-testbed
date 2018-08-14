@@ -57,10 +57,10 @@ class ActionPairState(Generic[X_Action, Y_Action]):
         self.x_action = x_action_in
         self.y_action = y_action_in
 
-    def get_last_x_action(self):
+    def get_last_x_action(self) -> X_Action:
         return self.x_action
 
-    def get_last_y_action(self):
+    def get_last_y_action(self) -> Y_Action:
         return self.y_action
 
 
@@ -70,10 +70,10 @@ class ActionPairObservation(Generic[X_Action, Y_Action]):
         self.x_action = x_action_in
         self.y_action = y_action_in
 
-    def get_last_me_action(self):
+    def get_last_me_action(self) -> X_Action:
         return self.x_action
 
-    def get_last_opp_action(self):
+    def get_last_opp_action(self) -> Y_Action:
         return self.y_action
 
 

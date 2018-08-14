@@ -19,11 +19,11 @@ def create_and_write_sim(file_name, initial_state, action_pair_dynamics, full_ob
     f = open(file_name, 'w')
     simulation = simulate(initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b)
-    simulation = write_count(simulation, f)
+    simulation = print_count(simulation, f)
 
-    simulation = write_actions(simulation, f)
-    simulation = write_distributions(simulation, f)
-    simulation = write_model(simulation, f)
+    simulation = print_actions(simulation, f)
+    simulation = print_distributions(simulation, f)
+    simulation = print_model(simulation, f)
 
     run_sim(simulation)
     f.close()

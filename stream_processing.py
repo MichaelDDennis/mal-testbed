@@ -1,5 +1,5 @@
 import time
-from typing import TypeVar, Iterator, Generator, Any
+from typing import TypeVar, Iterator, Generator, Any, TextIO
 from simulation import ActionPairState
 from agents import ModelActionPair, ActionDistributionPair
 import sys
@@ -30,7 +30,7 @@ def run_sim(simulation: Iterator[T]) -> None:
 
 def print_actions(simulation: Iterator[ActionPairState[ModelActionPair[Any, ActionDistributionPair],
                                                        ModelActionPair[Any, ActionDistributionPair]]],
-                  output=sys.stdout) \
+                  output: TextIO=sys.stdout ) \
                   -> Generator[ActionPairState[ModelActionPair[Any, ActionDistributionPair],
                                                ModelActionPair[Any, ActionDistributionPair]], None, None]:
     for s in simulation:
@@ -42,7 +42,7 @@ def print_actions(simulation: Iterator[ActionPairState[ModelActionPair[Any, Acti
 
 def print_distributions(simulation: Iterator[ActionPairState[ModelActionPair[Any, ActionDistributionPair],
                                                              ModelActionPair[Any, ActionDistributionPair]]],
-                        output=sys.stdout) \
+                        output: TextIO=sys.stdout) \
                         -> Generator[ActionPairState[ModelActionPair[Any, ActionDistributionPair],
                                                      ModelActionPair[Any, ActionDistributionPair]], None, None]:
     for s in simulation:
@@ -54,7 +54,7 @@ def print_distributions(simulation: Iterator[ActionPairState[ModelActionPair[Any
 
 
 def print_model(simulation: Iterator[ActionPairState[ModelActionPair, ModelActionPair]],
-                output=sys.stdout) \
+                output: TextIO=sys.stdout) \
                 -> Generator[ActionPairState[ModelActionPair, ModelActionPair], None, None]:
     for s in simulation:
         output.write("Model Parameters were: ({},{})\n".format(s.get_last_x_action().get_model(),
@@ -65,7 +65,7 @@ def print_model(simulation: Iterator[ActionPairState[ModelActionPair, ModelActio
 
 # This should be on the inside
 def print_count(simulation: Iterator[ActionPairState],
-                output=sys.stdout) -> Generator[ActionPairState, None, None]:
+                output: TextIO=sys.stdout) -> Generator[ActionPairState, None, None]:
     count = 0
     for s in simulation:
         output.write("Starting simulation round: {}\n".format(count))

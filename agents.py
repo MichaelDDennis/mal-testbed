@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import TypeVar, Generic, Callable
+from typing import TypeVar, Generic, Callable, List
 import tensorflow as tf
 import numpy as np
 
@@ -100,38 +100,36 @@ class TransparentAgentDecorator(Generic[Observation, Action, Model],
         return ModelActionPair(self._get_model(), self._agent.get_action(observation))
 
 
-def sample(distribution):
+def sample(distribution: List[float]) -> int:
     r = np.random.random()
-    running_sum = 0
+    running_sum = 0.0
     for i in range(len(distribution)):
         running_sum = running_sum + distribution[i]
         if running_sum > r:
             return i
+    return len(distribution)-1
 
 
-Distribution = TypeVar("Distribution")
+class ActionDistributionPair(Generic[Action]):
 
-
-class ActionDistributionPair(Generic[Action, Distribution]):
-
-    def __init__(self, action_in: Action, distribution_in: Distribution) -> None:
+    def __init__(self, action_in: Action, distribution_in: List[float]) -> None:
         self.action = action_in
         self.distribution = distribution_in
 
     def get_action(self) -> Action:
         return self.action
 
-    def get_distribution(self) -> Distribution:
+    def get_distribution(self) -> List[float]:
         return self.distribution
 
 
-class SamplingAgentDecorator(Generic[Observation, Distribution],
-                             Agent[Observation, ActionDistributionPair[int, Distribution]]):
-    def __init__(self, agent: Agent[Observation, Distribution]) -> None:
+class SamplingAgentDecorator(Generic[Observation],
+                             Agent[Observation, ActionDistributionPair[int]]):
+    def __init__(self, agent: Agent[Observation, List[float]]) -> None:
         super().__init__()
         self._agent = agent
 
-    def get_action(self, observation: Observation) -> ActionDistributionPair[int, Distribution]:
+    def get_action(self, observation: Observation) -> ActionDistributionPair[int]:
         action_distribution = self._agent.get_action(observation)
         return ActionDistributionPair(sample(action_distribution), action_distribution)
 

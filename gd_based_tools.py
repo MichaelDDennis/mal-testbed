@@ -75,6 +75,10 @@ def make_constant_agent(get_session, start_vector, name):
 
 
 
+
+
+
+
 # This produces a utility function, from probability distributions to
 # note that we're not actually using this now
 def get_mixed_utility_function(mat):
@@ -228,23 +232,12 @@ def reverse_observation_model(state):
 def empty_update_model(me, _):
     return me
 
-def make_agent(get_session, start_vector, payoff, name, type = "naive gradient", test = False):
+def make_agent(get_session, start_vector, payoff, name):
     last_me = tf.placeholder(tf.float32)
     last_opp = tf.placeholder(tf.float32)
     opp = tf.placeholder(tf.float32, (3,))
     me = tf.Variable(start_vector, name="me")
 
-    # TODO add an easy way to build "complete" policy spaces
-
-    # def opp_utility(me_action,opp_action):
-    #       #calculate utility node for opp
-
-    # TODO add opponent update models that are more realistic (gradient descent based)
-    #def opp_update_model(opp, observation):
-        # opp_update = opp_vars+tf.train.GradientDescentOptimizer(0.01).minimize(1-opp_utility(me_model(observation,me_vars)
-        #                                       ,opp_model(observation,opp_vars))), var_list=[opp_vars]).get_gradients()
-        # get_session().run(opp_update, feed_dict=observation)
-      #  return opp
 
     initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
     initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0, 'prob': 1.0}
@@ -261,9 +254,20 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient",
     def get_model():
         return get_session().run(me)
 
-    if (type == "naive gradient"):
-        return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDescentBasedAgent(
-            get_session, simple_agent_model(transparent_observation_model(initial_state), me), u, me, make_state), name)), get_model)
-
-    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(ConstantStrategyAgent(
+    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDescentBasedAgent(
         get_session, simple_agent_model(transparent_observation_model(initial_state), me), u, me, make_state), name)), get_model)
+
+
+
+# LOLA Sketch
+# def opp_utility(me_action,opp_action):
+#       #calculate utility node for opp
+
+# def opp_update_model(opp, observation):
+# opp_update = opp_vars+tf.train.GradientDescentOptimizer(0.01).minimize(1-opp_utility(me_model(observation,me_vars)
+#                                       ,opp_model(observation,opp_vars))), var_list=[opp_vars]).get_gradients()
+# get_session().run(opp_update, feed_dict=observation)
+#  return opp
+
+# TODO add an easy way to build "complete" policy spaces
+# TODO add opponent update models that are more realistic (gradient descent based)

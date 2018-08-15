@@ -210,7 +210,7 @@ def main():
 
     # get_utility_node_test()
 
-    # tit_for_tat_bot_test()
+    tit_for_tat_bot_test()
 
     # cooperate_bot_test()
 

@@ -1,7 +1,79 @@
 from agents import *
 from simulation import *
 import tensorflow as tf
-from typing import Any
+from typing import Any, TypeVar, Tuple, Mapping
+from tf_node_wrappers import *
+
+
+def load_me_model(observation: ActionPairObservation[ModelActionPair, Any]):
+    return observation.get_last_me_action().get_model()
+
+
+def load_opp_model(observation: ActionPairObservation[Any, ModelActionPair]):
+    return observation.get_last_opp_action().get_model()
+
+
+def load_me_action(observation: ActionPairObservation[ModelActionPair[Any, ActionDistributionPair], Any]):
+    return observation.get_last_me_action().get_action().get_action()
+
+
+def load_opp_action(observation: ActionPairObservation[Any, ModelActionPair[Any, ActionDistributionPair]]):
+    return observation.get_last_opp_action().get_action().get_action()
+
+
+def basic_3_val_predict(me_vars, observation):
+    prob_d = bound_probabilities(tf.multiply(me_vars[0], observation.get_last_me_action_node() - 0.5) +
+                                 tf.multiply(me_vars[1], observation.get_last_opp_action_node() - 0.5) + me_vars[2])
+    return [1 - prob_d, prob_d]
+
+
+def empty_update(me_vars, _):
+    return me_vars
+
+
+def load_inputs(input_nodes: List[InputNode[Observation, Val_Type]]) -> Callable[[Observation], Mapping]:
+    def load(observation: Observation) -> Mapping:
+        result = {}
+        for input_node in input_nodes:
+            node, val = input_node.load(observation)
+            result[node] = val
+        return result
+    return load
+
+
+Action_Me_Val = TypeVar("Action_Me_Val")
+Observation_Me_Val = TypeVar("Observation_Me_Val")
+Model_Me_Val = TypeVar("Model_Me_Val")
+Action_Opp_Val = TypeVar("Action_Opp_Val")
+Observation_Opp_Val = TypeVar("Observation_Opp_Val")
+Model_Opp_Val = TypeVar("Model_Opp_Val")
+
+
+def initial_state_maker(me_action: Action_Me_Val, opp_action: Action_Opp_Val,
+                        me_model: Model_Me_Val, opp_model: Model_Opp_Val)\
+                -> ActionPairState[ModelActionPair[Model_Me_Val, ActionDistributionPair[Action_Me_Val]],
+                                   ModelActionPair[Model_Opp_Val, ActionDistributionPair[Action_Opp_Val]]]:
+    return ActionPairState(ModelActionPair(me_model, ActionDistributionPair(me_action, [])),
+                           ModelActionPair(opp_model, ActionDistributionPair(opp_action, [])))
+
+
+def make_constant_agent(get_session, start_vector, name):
+    last_me_action_node = InputNode(load_me_action)
+    last_opp_action_node = InputNode(load_opp_action)
+    inputs = [last_me_action_node, last_opp_action_node]
+
+    constant_agent_model = ModelBasedAgentModelNodeGenerator(start_vector, empty_update, basic_3_val_predict)
+
+    def get_model():
+        return start_vector
+
+    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(ConstantStrategyAgent(
+        get_session,
+        constant_agent_model.get_action(ActionPairObservationNode(last_me_action_node, last_opp_action_node)),
+        load_inputs(inputs)), name)), get_model)
+
+
+
 
 # This produces a utility function, from probability distributions to
 # note that we're not actually using this now
@@ -164,16 +236,6 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient",
 
     # TODO add an easy way to build "complete" policy spaces
 
-
-
-
-
-
-
-
-
-
-
     # def opp_utility(me_action,opp_action):
     #       #calculate utility node for opp
 
@@ -205,100 +267,3 @@ def make_agent(get_session, start_vector, payoff, name, type = "naive gradient",
 
     return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(ConstantStrategyAgent(
         get_session, simple_agent_model(transparent_observation_model(initial_state), me), u, me, make_state), name)), get_model)
-
-
-def make_constant_agent(get_session, start_vector, name):
-    last_me = tf.placeholder(tf.float32)
-    last_opp = tf.placeholder(tf.float32)
-
-    def me_model(me_vars):
-        prob_d = bound_probabilities(tf.multiply(me_vars[0], last_me-0.5) +
-                                     tf.multiply(me_vars[1], last_opp-0.5) + me_vars[2])
-        return [1 - prob_d, prob_d]
-
-    def make_state(observation: ActionPairObservation[ModelActionPair[Any, ActionDistributionPair],
-                                                      ModelActionPair[Any, ActionDistributionPair]]):
-        return {last_me: observation.get_last_me_action().get_action().get_action(),
-                last_opp: observation.get_last_opp_action().get_action().get_action()}
-
-    def get_model():
-        return start_vector
-
-    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(ConstantStrategyAgent(
-        get_session, me_model(start_vector)
-        ,make_state), name)), get_model)
-
-
-def initial_state_maker(me_action, opp_action, me_model, opp_model):
-    return ActionPairState(ModelActionPair(me_model, ActionDistributionPair(me_action, [])),
-                           ModelActionPair(opp_model, ActionDistributionPair(opp_action, [])))
-
-
-
-# # By convention TensorFlowWrapperNodes will be immutable.  The underlying node should never change.
-# class TensorFlowWrapperNode():
-#
-#
-#     # Get the children tensor flow node wrappers for pretty print
-#     def get_children(self):
-#         pass
-#
-#
-#     # Make sure they make string work
-#     def ___str__(self):
-#         pass
-#
-#
-#     # Gives a function that will get the current values of this node given a session
-#     def get_current_value_function(self):
-#         pass
-#
-#
-#     # Get the tensor flow node that this is wrapping
-#     def get_tensor_flow_node(self):
-#         pass
-#
-#
-#     # Gets a list of tensor flow input nodes on which this nodes computation depends.
-#     def get_placeholder_dependencies(self):
-#         pass
-
-
-
-
-# class ObservationNode():
-#     pass
-#
-#
-# class ActionNode():
-#     pass
-#
-#
-# class AgentNode():
-#     pass
-#
-#
-# class PredictionNode():
-#     pass
-#
-#
-# class MemoryNode():
-#     pass
-#
-#
-# class StateNode():
-#     pass
-#
-#
-# class UpdateNode():
-#     def __init__(self, memoryNode : MemoryNode, update):
-#
-#     pass
-
-
-
-
-
-
-
-

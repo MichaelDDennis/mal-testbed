@@ -101,8 +101,8 @@ def get_mixed_utility_function(mat):
 def get_utility_function_from_payoff(mat):
     def utility_function(state):
 
-        a = state['me_action_node']
-        b = state['opp_action_node']
+        a = state.get_last_x_action_node().tf_node
+        b = state.get_last_y_action_node().tf_node
 
         return mat[a][b]
     return utility_function
@@ -119,9 +119,7 @@ def get_utility_of_states(reward, state_list):
 def bound_probabilities(input_node):
     return tf.multiply(tf.tanh(input_node), 0.5)+0.5
 
-# Reward Model (Function that takes in state and outputs reward)
-# dyn_model (How states change)
-# me_model (How I
+
 def get_utility_node(reward_model, dyn_model, me_model, opp_model,
                      me_observation_model, opp_observation_model, me_update_model, opp_update_model,
                      initial_state_to_process, max_depth, markov_sim = False):
@@ -132,52 +130,25 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
     #TODO: also prevent exponential blowup in learning rate by renormalizing
     #TODO: Replace this with the exact calculation that involved the matrix inverse (this involves finding the transition matrix)
     for full_state in full_states_to_process:
-        state = full_state['state']
-        me_cur = full_state['me_model']
-        opp_cur = full_state['opp_model']
+        state = full_state.state
+        me_cur = full_state.me_params_node
+        opp_cur = full_state.opp_params_node
         action_distr_me = me_model(me_observation_model(state), me_cur)
         action_distr_opp = opp_model(opp_observation_model(state), opp_cur)
 
-        """
-        if markov_sim:
-            def compare_state(state_1,state_2):
-                if ((state_1['me_action_node'] == state_2['me_action_node']) and (state_1['opp_action_node'] == state_2['opp_action_node'])):
-                    return True
-                else: return False
-        """
-
         for action_me in range(2):
             for action_opp in range(2):
-                new_state = dyn_model(state, action_me, action_opp)
+                new_state = dyn_model(state, ConstNode(action_me), ConstNode(action_opp))
                 prob = tf.multiply(action_distr_me[action_me], action_distr_opp[action_opp])
-                states.append((new_state, tf.multiply(full_state['prob'],prob)))
-                #TODO: avoid exponential blowup using code like the following (but with a better equality check?)
-                """
-                if markov_sim:
-                    for s in states:
-                        if compare_state(s[0],new_state): #hopefully the equality check works >.<, naively using == didn't work
-                            s[1] = s[1] + prob #ugh, illegal because s[1] is a tuple and can't be assigned to I guess
-                        else:
-                            states.append([new_state, prob])
-                """
-                if (full_state['depth'] < max_depth):
-                    to_possibly_append = {'state': new_state,
-                                                       'me_model': me_update_model(me_cur, me_observation_model(state)),
-                                                       'opp_model': opp_update_model(opp_cur, opp_observation_model(state)),
-                                                       'depth': full_state['depth']+1,
-                                                        'prob': tf.multiply(full_state['prob'],prob)
-                                                        }
-                    if (not (markov_sim)):
-                        full_states_to_process.append(to_possibly_append)
-                    """
-                    else:
-                        for s in full_states_to_process:
-                            if (compare_state(s['state'], new_state)) and (s['depth'] == full_state['depth']+1):
-                                #increase s['prob']
-                                pass
-                            else:
-                                full_states_to_process.append(to_possibly_append)
-                    """
+                states.append((new_state, tf.multiply(full_state.get_prob(), prob)))
+
+                if full_state.get_depth() < max_depth:
+                    full_states_to_process.append(TotalStateNode(new_state,
+                                                                 me_update_model(me_cur, me_observation_model(state)),
+                                                                 opp_update_model(opp_cur,
+                                                                                  opp_observation_model(state)),
+                                                                 full_state.get_depth()+1,
+                                                                 tf.multiply(full_state.get_prob(), prob)))
 
     return get_utility_of_states(reward_model, states)
 
@@ -216,47 +187,41 @@ def get_exact_discounted_utility_node(payoff_matrix, dyn_model, me_model,opp_mod
 
 # We can always add a random player, dynamics can be deterministic
 def action_pair_dyn_model(_, me_action, them_action):
-    return {'me_action_node': me_action, 'opp_action_node': them_action}
+    return ActionPairStateNode(me_action,  them_action)
 
 def simple_agent_model(observation, me_vars):
-    prob_d = bound_probabilities(tf.multiply(me_vars[0], observation['me_action_node']-0.5) +
-                                 tf.multiply(me_vars[1], observation['opp_action_node']-0.5) + me_vars[2])
+    prob_d = bound_probabilities(tf.multiply(me_vars.tf_node[0], observation.get_last_me_action_node().tf_node-0.5) +
+                                 tf.multiply(me_vars.tf_node[1], observation.get_last_opp_action_node().tf_node-0.5) + me_vars.tf_node[2])
     return [1 - prob_d, prob_d]
 
 def transparent_observation_model(state):
-    return state
+    return ActionPairObservationNode(state.get_last_x_action_node(), state.get_last_y_action_node())
 
 def reverse_observation_model(state):
-    return {'me_action_node': state['opp_action_node'], 'opp_action_node': state['me_action_node']}
+    return ActionPairObservationNode(state.get_last_y_action_node(), state.get_last_x_action_node())
 
 def empty_update_model(me, _):
     return me
 
+
 def make_agent(get_session, start_vector, payoff, name):
-    last_me = tf.placeholder(tf.float32)
-    last_opp = tf.placeholder(tf.float32)
-    opp = tf.placeholder(tf.float32, (3,))
-    me = tf.Variable(start_vector, name="me")
+    last_me_action_node = InputNode(load_me_action)
+    last_opp_action_node = InputNode(load_opp_action)
+    opp_params_node = InputNode(load_opp_model)
+    me_params_node = VariableNode(start_vector, "me", get_session)
 
+    inputs = [last_me_action_node, last_opp_action_node, opp_params_node]
 
-    initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
-    initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0, 'prob': 1.0}
-    u = get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model, simple_agent_model,
-                       transparent_observation_model, reverse_observation_model, empty_update_model, empty_update_model,
-                       initial_state_to_process, 1, False)
-
-    def make_state(observation: ActionPairObservation[ModelActionPair[Any, ActionDistributionPair],
-                                                      ModelActionPair[Any, ActionDistributionPair]]):
-        return {opp: observation.get_last_opp_action().get_model(),
-                last_me: observation.get_last_me_action().get_action().get_action(),
-                last_opp: observation.get_last_opp_action().get_action().get_action()}
-
-    def get_model():
-        return get_session().run(me)
+    initial_state = ActionPairStateNode(last_me_action_node, last_opp_action_node)
+    initial_state_to_process = TotalStateNode(initial_state, me_params_node,  opp_params_node,  0,  1.0)
+    u = get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model,
+                         simple_agent_model, transparent_observation_model, reverse_observation_model,
+                         empty_update_model, empty_update_model, initial_state_to_process, 1, False)
 
     return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDescentBasedAgent(
-        get_session, simple_agent_model(transparent_observation_model(initial_state), me), u, me, make_state), name)), get_model)
-
+        get_session, simple_agent_model(transparent_observation_model(initial_state), me_params_node), u,
+        me_params_node.tf_node, load_inputs(inputs)),
+        name)), me_params_node.get_val)
 
 
 # LOLA Sketch

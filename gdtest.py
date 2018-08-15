@@ -55,13 +55,17 @@ def get_utility_node_test_helper(a_params,b_params, depth=0):
     # initial_model_agent_a = [.25, 0.5, -.3333333]
     # initial_model_agent_tit_for_tat = [.125, 0.25, -.166666666]
 
+    last_me_action_node = InputNode(load_me_action)
+    last_opp_action_node = InputNode(load_opp_action)
+    opp_params_node = InputNode(load_opp_model)
+    me_params_node = VariableNode(a_params, "me", get_session)
 
-    last_me = tf.placeholder(tf.float32)
-    last_opp = tf.placeholder(tf.float32)
-    opp = tf.placeholder(tf.float32, (3,))
-    me = tf.Variable(a_params, name="me")
-    initial_state = {'me_action_node': last_me, 'opp_action_node': last_opp}
-    initial_state_to_process = {'state': initial_state, 'me_model': me, 'opp_model': opp, 'depth': 0, 'prob': 1.0}
+
+    inputs = [last_me_action_node, last_opp_action_node, opp_params_node]
+
+    initial_state = ActionPairStateNode(last_me_action_node, last_opp_action_node)
+    initial_state_to_process = TotalStateNode(initial_state, me_params_node,  opp_params_node,  0,  1.0)
+
     u = get_utility_node(util_fun_node, action_pair_dyn_model, simple_agent_model,
                          simple_agent_model,
                          transparent_observation_model, reverse_observation_model, empty_update_model,
@@ -85,7 +89,7 @@ def get_utility_node_test_helper(a_params,b_params, depth=0):
         # print(u_a_0_val)
         # u_a_val = session.run(u_a)
         # print(u_a_val)
-        u_a_val = session.run(u, feed_dict={last_me: 0.0, last_opp: 0.0, opp: b_params }).item()
+        u_a_val = session.run(u, feed_dict={last_me_action_node.tf_node: 0.0, last_opp_action_node.tf_node: 0.0, opp_params_node.tf_node: b_params }).item()
         return u_a_val
 
         """
@@ -208,9 +212,9 @@ def main():
 
     # bound_probabilities_test()
 
-    # get_utility_node_test()
+    get_utility_node_test()
 
-    tit_for_tat_bot_test()
+    # tit_for_tat_bot_test()
 
     # cooperate_bot_test()
 

@@ -6,9 +6,11 @@ from testing_tools import *
 def get_session():
     return session
 
+
 def test_equals(x,y,s):
     if x != y:
         raise Exception("{} was not the same, should be {} but was {}".format(s,x,y))
+
 
 def get_utility_node_test():
     #Easy Tests
@@ -58,7 +60,7 @@ def get_utility_node_test_helper(a_params,b_params, depth=0):
     last_me_action_node = InputNode(load_me_action)
     last_opp_action_node = InputNode(load_opp_action)
     opp_params_node = InputNode(load_opp_model)
-    me_params_node = VariableNode(a_params, "me", get_session)
+    me_params_node = TriVal_VariableNode(a_params, "me", get_session)
 
 
     inputs = [last_me_action_node, last_opp_action_node, opp_params_node]
@@ -210,7 +212,7 @@ def init_to_TFT_test():
 
 def main():
 
-    # bound_probabilities_test()
+    bound_probabilities_test()
 
     get_utility_node_test()
 

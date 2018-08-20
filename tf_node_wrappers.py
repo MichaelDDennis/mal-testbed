@@ -2,39 +2,31 @@ from abc import abstractmethod
 from typing import TypeVar, Generic, Callable, Tuple, Any
 import tensorflow as tf
 
+
+# Right now TFNodeWrappers are being used as a marker for this level of abstraction.  They are objects that aggregate
+# TF Nodes into pieces with some sort of semantic meaning.  The end goal being easier debugging and having methods that
+# work at a higher level of abstraction.
+#
+# By convention TensorFlowWrapperNodes will be immutable.  The underlying information should never change.
+class TFNodeWrapper:
+    pass
+
+
+class ScalarNode(TFNodeWrapper):
+
+    def __init__(self):
+        raise Exception('cannot instantiate abstract class')
+
+    @abstractmethod
+    def get_val(self):
+        raise Exception('the get_val function needs to be overrriden')
+
+
 Val_Type = TypeVar("Val_Type")
 Observation_Val = TypeVar("Observation_Val")
 
-# By convention TensorFlowWrapperNodes will be immutable.  The underlying node should never change.
-class TensorFlowWrapperNode():
 
-
-    # Get the children tensor flow node wrappers for pretty print
-    def get_children(self):
-        pass
-
-
-    # Make sure they make string work
-    def ___str__(self):
-        pass
-
-
-    # Gives a function that will get the current values of this node given a session
-    def get_current_value_function(self):
-        pass
-
-
-    # Get the tensor flow node that this is wrapping
-    def get_tensor_flow_node(self):
-        pass
-
-
-    # Gets a list of tensor flow input nodes on which this nodes computation depends.
-    def get_placeholder_dependencies(self):
-        pass
-
-
-class InputNode(Generic[Observation_Val, Val_Type]):
+class InputNode(Generic[Observation_Val, Val_Type], TFNodeWrapper):
 
     def __init__(self, load_val_in: Callable[[Observation_Val], Val_Type]) -> None:
         self.load_val = load_val_in
@@ -43,14 +35,21 @@ class InputNode(Generic[Observation_Val, Val_Type]):
     def load(self, observation: Observation_Val) -> Tuple[Any, Val_Type]:
         return self.tf_node, self.load_val(observation)
 
+    def get_val(self):
+        return self.tf_node
 
-class ConstNode:
+
+class ConstNode(TFNodeWrapper):
 
     def __init__(self, const):
         self.tf_node = const
 
+    def get_val(self):
+        return self.tf_node
 
-class VariableNode(Generic[Val_Type]):
+
+
+class TriVal_VariableNode(TFNodeWrapper):
     #TODO refactor to remove get_session
     def __init__(self, start_val: Val_Type, name: str, get_session_in) -> None:
         self.tf_node = tf.Variable(start_val, name)
@@ -59,54 +58,31 @@ class VariableNode(Generic[Val_Type]):
     def get_val(self) -> Val_Type:
         return self.get_session().run(self.tf_node)
 
-Observation_Node = TypeVar("Observation_Node")
-Action_Node = TypeVar("Action_Node")
-Model_Node = TypeVar("Model_Node")
+    def get_tensor_flow_node(self):
+        return self.tf_node
 
 
-class AgentModelNodeGenerator(Generic[Observation_Node, Action_Node]):
-
-    def __init__(self) -> None:
-        pass
-
-    @abstractmethod
-    def get_action(self, observation_node: Observation_Node) -> Action_Node:
-        raise Exception('The action function needs to be overridden')
+Action_X_Node = TypeVar("Action_X_Node", bound='TFNodeWrapper')
+Action_Y_Node = TypeVar("Action_Y_Node", bound='TFNodeWrapper')
+Model_X_Node = TypeVar("Model_X_Node", bound='TFNodeWrapper')
+Model_Y_Node = TypeVar("Model_Y_Node", bound='TFNodeWrapper')
+State_Node = TypeVar("State_Node", bound='TFNodeWrapper')
 
 
-class ModelBasedAgentModelNodeGenerator(Generic[Observation_Node, Action_Node, Model_Node],
-                                        AgentModelNodeGenerator[Observation_Node, Action_Node]):
-
-    def __init__(self, model_in: Model_Node,
-                 update_in: Callable[[Model_Node, Observation_Node], Model_Node],
-                 predict_in: Callable[[Model_Node, Observation_Node], Action_Node]) -> None:
-        self.model = model_in
-        self.update = update_in
-        self.predict = predict_in
-
-    def get_action(self, observation_node: Observation_Node) -> Action_Node:
-        self.model = self.update(self.model, observation_node)
-        return self.predict(self.model, observation_node)
-
-
-Action_X_Node = TypeVar("Action_X_Node")
-Action_Y_Node = TypeVar("Action_Y_Node")
-
-
-class ActionPairObservationNode(Generic[Action_X_Node, Action_Y_Node]):
+class ActionPairObservationNode(Generic[Action_X_Node, Action_Y_Node], TFNodeWrapper):
 
     def __init__(self, action_me_node_in: Action_X_Node, action_opp_node_in: Action_Y_Node) -> None:
         self.action_me_node = action_me_node_in
         self.action_opp_node = action_opp_node_in
 
-    def get_last_me_action_node(self):
+    def get_last_me_action_node(self) -> Action_X_Node:
         return self.action_me_node
 
-    def get_last_opp_action_node(self):
+    def get_last_opp_action_node(self) -> Action_Y_Node:
         return self.action_opp_node
 
 
-class ActionPairStateNode(Generic[Action_X_Node, Action_Y_Node]):
+class ActionPairStateNode(Generic[Action_X_Node, Action_Y_Node], TFNodeWrapper):
 
     def __init__(self, action_x_node_in: Action_X_Node, action_y_node_in: Action_Y_Node) -> None:
         self.action_x_node = action_x_node_in
@@ -119,13 +95,7 @@ class ActionPairStateNode(Generic[Action_X_Node, Action_Y_Node]):
         return self.action_y_node
 
 
-Model_X_Node = TypeVar("Model_X_Node")
-Model_Y_Node = TypeVar("Model_Y_Node")
-State_Node = TypeVar("State_Node")
-
-
-class TotalStateNode(Generic[Model_X_Node, Model_Y_Node, State_Node]):
-    # include probability and depth
+class TotalStateNode(Generic[Model_X_Node, Model_Y_Node, State_Node], TFNodeWrapper):
 
     def __init__(self, state_in, me_params_node_in,  opp_params_node_in,  depth_in,  prob_in):
         self.state = state_in

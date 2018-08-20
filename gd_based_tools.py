@@ -2,7 +2,7 @@ from agents import *
 from simulation import *
 import tensorflow as tf
 from typing import Any, TypeVar, Tuple, Mapping
-from tf_node_wrappers import *
+from tf_node_wrapper_generators import *
 
 
 def load_me_model(observation: ActionPairObservation[ModelActionPair, Any]):
@@ -21,9 +21,9 @@ def load_opp_action(observation: ActionPairObservation[Any, ModelActionPair[Any,
     return observation.get_last_opp_action().get_action().get_action()
 
 
-def basic_3_val_predict(me_vars, observation):
-    prob_d = bound_probabilities(tf.multiply(me_vars[0], observation.get_last_me_action_node() - 0.5) +
-                                 tf.multiply(me_vars[1], observation.get_last_opp_action_node() - 0.5) + me_vars[2])
+def basic_3_val_predict(me_vars: TriVal_VariableNode, observation: ActionPairObservationNode[ScalarNode, ScalarNode]):
+    prob_d = bound_probabilities(tf.multiply(me_vars.tf_node[0], observation.get_last_me_action_node().get_val() - 0.5) +
+                                 tf.multiply(me_vars.tf_node[1], observation.get_last_opp_action_node().get_val() - 0.5) + me_vars.tf_node[2])
     return [1 - prob_d, prob_d]
 
 
@@ -61,8 +61,9 @@ def make_constant_agent(get_session, start_vector, name):
     last_me_action_node = InputNode(load_me_action)
     last_opp_action_node = InputNode(load_opp_action)
     inputs = [last_me_action_node, last_opp_action_node]
+    me_node = TriVal_VariableNode(start_vector, "me", get_session)
 
-    constant_agent_model = ModelBasedAgentModelNodeGenerator(start_vector, empty_update, basic_3_val_predict)
+    constant_agent_model = ModelBasedAgentModelNodeGenerator(me_node, empty_update, basic_3_val_predict)
 
     def get_model():
         return start_vector
@@ -208,7 +209,7 @@ def make_agent(get_session, start_vector, payoff, name):
     last_me_action_node = InputNode(load_me_action)
     last_opp_action_node = InputNode(load_opp_action)
     opp_params_node = InputNode(load_opp_model)
-    me_params_node = VariableNode(start_vector, "me", get_session)
+    me_params_node = TriVal_VariableNode(start_vector, "me", get_session)
 
     inputs = [last_me_action_node, last_opp_action_node, opp_params_node]
 
@@ -218,10 +219,21 @@ def make_agent(get_session, start_vector, payoff, name):
                          simple_agent_model, transparent_observation_model, reverse_observation_model,
                          empty_update_model, empty_update_model, initial_state_to_process, 1, False)
 
-    return TransparentAgentDecorator(SamplingAgentDecorator(NameAgentDecorator(GradientDescentBasedAgent(
-        get_session, simple_agent_model(transparent_observation_model(initial_state), me_params_node), u,
-        me_params_node.tf_node, load_inputs(inputs)),
-        name)), me_params_node.get_val)
+    return TransparentAgentDecorator(
+                SamplingAgentDecorator(
+                        NameAgentDecorator(
+                            GradientDescentBasedAgent(
+                                get_session,
+                                simple_agent_model(ActionPairObservationNode(last_me_action_node, last_opp_action_node), me_params_node),
+                                u,
+                                me_params_node.tf_node,
+                                load_inputs(inputs)
+                            ),
+                            name
+                        )
+                ),
+                me_params_node.get_val
+    )
 
 
 # LOLA Sketch

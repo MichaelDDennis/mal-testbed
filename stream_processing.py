@@ -22,6 +22,13 @@ def slow_sim_decorator(simulation: Iterator[T], delay: int) -> Generator[T, None
         time.sleep(delay)
 
 
+def skip_n(simulation: Iterator[T], n: int) -> Generator[T, None, None]:
+    i = 0
+    for s in simulation:
+        if i//n == 0:
+            yield s
+        i = i+1
+
 # This runs the stream until the end
 def run_sim(simulation: Iterator[T]) -> None:
     for _ in simulation:

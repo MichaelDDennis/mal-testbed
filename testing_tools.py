@@ -6,8 +6,9 @@ def create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observat
 
     simulation = simulate(initial_state, action_pair_dynamics, full_observation_function,
                           reflective_pair_observation_function, agent_a, agent_b)
-    simulation = print_count(simulation)
+    simulation = skip_n(simulation, 10000)
     simulation = slow_sim_decorator(simulation, 1)
+    simulation = print_count(simulation)
     simulation = print_actions(simulation)
     simulation = print_distributions(simulation)
     simulation = print_model(simulation)

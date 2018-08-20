@@ -145,9 +145,9 @@ def get_utility_node(reward_model, dyn_model, me_model, opp_model,
 
                 if full_state.get_depth() < max_depth:
                     full_states_to_process.append(TotalStateNode(new_state,
-                                                                 me_update_model(me_cur, me_observation_model(state)),
+                                                                 me_update_model(me_cur, me_observation_model(state), opp_cur),
                                                                  opp_update_model(opp_cur,
-                                                                                  opp_observation_model(state)),
+                                                                                  opp_observation_model(state), me_cur),
                                                                  full_state.get_depth()+1,
                                                                  tf.multiply(full_state.get_prob(), prob)))
 
@@ -201,8 +201,30 @@ def transparent_observation_model(state):
 def reverse_observation_model(state):
     return ActionPairObservationNode(state.get_last_y_action_node(), state.get_last_x_action_node())
 
-def empty_update_model(me, _):
+def empty_update_model(me, _, opp):
     return me
+
+def get_gd_update_model(utility_loss_minus_opp):
+
+    def gd_update(me, observation, opp):
+        return me + tf.gradients(me, utility_loss_minus_opp(opp, me, observation))
+
+    return gd_update
+
+
+def utility_loss_minus_opp(me, opp, observation: ActionPairObservationNode):
+    prisoners_payoff = [[2.0, 0.0],
+                        [3.0, 1.0]]
+
+    last_me_action_node = observation.get_last_me_action_node()
+    last_opp_action_node = observation.get_last_opp_action_node()
+
+    initial_state = ActionPairStateNode(last_me_action_node, last_opp_action_node)
+    initial_state_to_process = TotalStateNode(initial_state, me,  opp,  0,  1.0)
+
+    return get_utility_node(get_utility_function_from_payoff(prisoners_payoff), action_pair_dyn_model, me, opp,
+                     transparent_observation_model, reverse_observation_model, empty_update, empty_update,
+                     initial_state_to_process, 3)
 
 
 def make_agent(get_session, start_vector, payoff, name):
@@ -217,7 +239,37 @@ def make_agent(get_session, start_vector, payoff, name):
     initial_state_to_process = TotalStateNode(initial_state, me_params_node,  opp_params_node,  0,  1.0)
     u = get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model,
                          simple_agent_model, transparent_observation_model, reverse_observation_model,
-                         empty_update_model, empty_update_model, initial_state_to_process, 1, False)
+                         empty_update_model, empty_update_model, initial_state_to_process, 2, False)
+
+    return TransparentAgentDecorator(
+                SamplingAgentDecorator(
+                        NameAgentDecorator(
+                            GradientDescentBasedAgent(
+                                get_session,
+                                simple_agent_model(ActionPairObservationNode(last_me_action_node, last_opp_action_node), me_params_node),
+                                u,
+                                me_params_node.tf_node,
+                                load_inputs(inputs)
+                            ),
+                            name
+                        )
+                ),
+                me_params_node.get_val
+    )
+
+def make__lola_agent(get_session, start_vector, payoff, name):
+    last_me_action_node = InputNode(load_me_action)
+    last_opp_action_node = InputNode(load_opp_action)
+    opp_params_node = InputNode(load_opp_model)
+    me_params_node = TriVal_VariableNode(start_vector, "me", get_session)
+
+    inputs = [last_me_action_node, last_opp_action_node, opp_params_node]
+
+    initial_state = ActionPairStateNode(last_me_action_node, last_opp_action_node)
+    initial_state_to_process = TotalStateNode(initial_state, me_params_node,  opp_params_node,  0,  1.0)
+    u = get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model,
+                         simple_agent_model, transparent_observation_model, reverse_observation_model,
+                         empty_update_model, empty_update_model, initial_state_to_process, 2, False)
 
     return TransparentAgentDecorator(
                 SamplingAgentDecorator(

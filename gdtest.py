@@ -209,18 +209,38 @@ def init_to_TFT_test():
     # #write_test_sims(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
     #compare_against_written_tests(initial_model_agent_a[:], initial_model_agent_b[:],agent_a,agent_b,"_prisoners")
 
+def lola_test():
+    global session
+
+    prisoners_payoff = [[2.0, 0.0],
+                        [3.0, 1.0]]
+    initial_model_agent_a = [0.0, 0.0, -2.0]
+    initial_model_agent_b = [0.0, 5.0, 0.0]
+    agent_a = make__lola_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
+    agent_b = make_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B")
+
+    model = tf.global_variables_initializer()
+    with tf.Session() as session:
+        session.run(model)
+
+        initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_b)
+        create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observation_function,
+                                  reflective_pair_observation_function, agent_a, agent_b)
+
 
 def main():
 
     bound_probabilities_test()
 
-    get_utility_node_test()
+    # get_utility_node_test()
 
     # tit_for_tat_bot_test()
 
     # cooperate_bot_test()
 
     # defection_confection_test()
+
+    lola_test()
 
 
 if __name__ == "__main__":

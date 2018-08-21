@@ -27,7 +27,7 @@ def basic_3_val_predict(me_vars: TriVal_VariableNode, observation: ActionPairObs
     return [1 - prob_d, prob_d]
 
 
-def empty_update(me_vars, _):
+def empty_update(me_vars, _, opp):
     return me_vars
 
 
@@ -201,20 +201,22 @@ def transparent_observation_model(state):
 def reverse_observation_model(state):
     return ActionPairObservationNode(state.get_last_y_action_node(), state.get_last_x_action_node())
 
-def empty_update_model(me, _, opp):
+def empty_update_model(me, _, observation):
     return me
 
 def get_gd_update_model(utility_loss_minus_opp):
 
-    def gd_update(me, observation, opp):
-        return me + tf.gradients(me, utility_loss_minus_opp(opp, me, observation))
+    def gd_update(me: InputNode, observation, opp):
+        update = tf.gradients(utility_loss_minus_opp(opp, me, observation), me.tf_node)
+        out = me.tf_node + update[0]*0.1
+        return ConstNode(out)
 
     return gd_update
 
 
-def utility_loss_minus_opp(me, opp, observation: ActionPairObservationNode):
-    prisoners_payoff = [[2.0, 0.0],
-                        [3.0, 1.0]]
+def utility_loss_minus_opp(opp, me, observation: ActionPairObservationNode):
+    prisoners_payoff = [[200.0, 0.0],
+                        [300.0, 1.0]]
 
     last_me_action_node = observation.get_last_me_action_node()
     last_opp_action_node = observation.get_last_opp_action_node()
@@ -222,9 +224,10 @@ def utility_loss_minus_opp(me, opp, observation: ActionPairObservationNode):
     initial_state = ActionPairStateNode(last_me_action_node, last_opp_action_node)
     initial_state_to_process = TotalStateNode(initial_state, me,  opp,  0,  1.0)
 
-    return get_utility_node(get_utility_function_from_payoff(prisoners_payoff), action_pair_dyn_model, me, opp,
-                     transparent_observation_model, reverse_observation_model, empty_update, empty_update,
-                     initial_state_to_process, 3)
+    return get_utility_node(get_utility_function_from_payoff(prisoners_payoff), action_pair_dyn_model,
+                            simple_agent_model, simple_agent_model,
+                            transparent_observation_model, reverse_observation_model, empty_update_model, empty_update_model,
+                            initial_state_to_process, 1)
 
 
 def make_agent(get_session, start_vector, payoff, name):
@@ -239,7 +242,7 @@ def make_agent(get_session, start_vector, payoff, name):
     initial_state_to_process = TotalStateNode(initial_state, me_params_node,  opp_params_node,  0,  1.0)
     u = get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model,
                          simple_agent_model, transparent_observation_model, reverse_observation_model,
-                         empty_update_model, empty_update_model, initial_state_to_process, 2, False)
+                         empty_update_model, empty_update_model, initial_state_to_process, 1, False)
 
     return TransparentAgentDecorator(
                 SamplingAgentDecorator(
@@ -263,13 +266,14 @@ def make__lola_agent(get_session, start_vector, payoff, name):
     opp_params_node = InputNode(load_opp_model)
     me_params_node = TriVal_VariableNode(start_vector, "me", get_session)
 
-    inputs = [last_me_action_node, last_opp_action_node, opp_params_node]
+    opp_update_model = get_gd_update_model(utility_loss_minus_opp)
 
+    inputs = [last_me_action_node, last_opp_action_node, opp_params_node]
     initial_state = ActionPairStateNode(last_me_action_node, last_opp_action_node)
     initial_state_to_process = TotalStateNode(initial_state, me_params_node,  opp_params_node,  0,  1.0)
     u = get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model,
                          simple_agent_model, transparent_observation_model, reverse_observation_model,
-                         empty_update_model, empty_update_model, initial_state_to_process, 2, False)
+                         empty_update_model, opp_update_model, initial_state_to_process, 1, False)
 
     return TransparentAgentDecorator(
                 SamplingAgentDecorator(

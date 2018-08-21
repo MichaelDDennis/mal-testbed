@@ -42,7 +42,7 @@ def simulate(initial_state: State, dynamics: Callable[[State, X_Action, Y_Action
              y_agent: Agent[Y_Observation, Y_Action]) -> Generator[State, None, None]:
 
     state = initial_state
-    for i in range(1000000):
+    for i in range(100000000):
         action_b = y_agent.get_action(y_observation_function(state))
         action_a = x_agent.get_action(x_observation_function(state))
 

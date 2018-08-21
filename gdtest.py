@@ -212,12 +212,12 @@ def init_to_TFT_test():
 def lola_test():
     global session
 
-    prisoners_payoff = [[2.0, 0.0],
-                        [3.0, 1.0]]
-    initial_model_agent_a = [0.0, 0.0, -2.0]
-    initial_model_agent_b = [0.0, 5.0, 0.0]
+    prisoners_payoff = [[200.0, 0.0],
+                        [300.0, 1.0]]
+    initial_model_agent_a = [0.0, 1.0, 0.0]
+    initial_model_agent_b = [0.0, 1.0, 0.0]
     agent_a = make__lola_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
-    agent_b = make_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B")
+    agent_b = make__lola_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B")
 
     model = tf.global_variables_initializer()
     with tf.Session() as session:

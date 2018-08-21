@@ -15,6 +15,7 @@ def create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observat
 
     run_sim(simulation)
 
+
 def create_and_write_sim(file_name, initial_state, action_pair_dynamics, full_observation_function,
                               reflective_pair_observation_function, agent_a, agent_b):
     f = open(file_name, 'w')

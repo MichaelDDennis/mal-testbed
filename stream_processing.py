@@ -29,6 +29,22 @@ def skip_n(simulation: Iterator[T], n: int) -> Generator[T, None, None]:
             yield s
         i = i+1
 
+def is_tit_for_tat(s):
+    return s[0] < 0 and s[1] > 5 and s[2] < 0.05
+
+
+def run_till_tit_for_tat(simulation: Iterator[ActionPairState[ModelActionPair[Any,Any], ModelActionPair[Any,Any]]]):
+    i = 0
+    for s in simulation:
+        if is_tit_for_tat(s.get_last_x_action().get_model()) and is_tit_for_tat(s.get_last_y_action().get_model()):
+            i += 1
+        else:
+            i = 0
+
+        if i > 100:
+            return True
+    return False
+
 # This runs the stream until the end
 def run_sim(simulation: Iterator[T]) -> None:
     for _ in simulation:

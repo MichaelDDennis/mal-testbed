@@ -212,10 +212,12 @@ def init_to_TFT_test():
 def lola_test():
     global session
 
+    print("lola test")
+
     prisoners_payoff = [[200.0, 0.0],
                         [300.0, 1.0]]
-    initial_model_agent_a = [0.0, 1.0, 0.0]
-    initial_model_agent_b = [0.0, 1.0, 0.0]
+    initial_model_agent_a = [0.6, -0.4, 0.2]
+    initial_model_agent_b = [0.2, -0.1, 0.3]
     agent_a = make__lola_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
     agent_b = make__lola_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B")
 
@@ -227,6 +229,84 @@ def lola_test():
         create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observation_function,
                                   reflective_pair_observation_function, agent_a, agent_b)
 
+def lola_control_test():
+    global session
+
+    print("control test")
+
+    prisoners_payoff = [[200.0, 0.0],
+                        [300.0, 1.0]]
+    initial_model_agent_a = [0.6, -0.4, 0.2]
+    initial_model_agent_b = [0.2, -0.1, 0.3]
+    agent_a = make_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
+    agent_b = make_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B")
+
+    model = tf.global_variables_initializer()
+    with tf.Session() as session:
+        session.run(model)
+
+        initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_b)
+        create_and_run_printy_sim(initial_state, action_pair_dynamics, full_observation_function,
+                                  reflective_pair_observation_function, agent_a, agent_b)
+
+
+def count_lola_tit_for_tat():
+    global session
+
+    print("lola count")
+
+    prisoners_payoff = [[200.0, 0.0],
+                        [300.0, 1.0]]
+    initial_model_agent_a = [0.6, -0.4, 0.2]
+    initial_model_agent_b = [0.2, -0.1, 0.3]
+    agent_a = make__lola_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
+    agent_b = make__lola_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B")
+
+    model = tf.global_variables_initializer()
+    count = 0
+    print("start session")
+    with tf.Session() as session:
+        isFine = True
+        while(isFine):
+            session.run(model)
+            print("Successfull Runs: {}".format(count))
+            print("Agent A's Model is: {} ".format(agent_a._get_model()))
+            print("Agent B's Model is: {} ".format(agent_b._get_model()))
+
+            initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_b)
+            isFine = run_till_tit_for_tat(simulate(initial_state, action_pair_dynamics, full_observation_function, reflective_pair_observation_function, agent_a, agent_b))
+            count += 1
+            print("")
+
+
+def count_control_tit_for_tat():
+    global session
+
+    print("control count")
+
+    prisoners_payoff = [[200.0, 0.0],
+                        [300.0, 1.0]]
+    initial_model_agent_a = [0.6, -0.4, 0.2]
+    initial_model_agent_b = [0.2, -0.1, 0.3]
+    agent_a = make_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
+    agent_b = make_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B")
+
+    model = tf.global_variables_initializer()
+    count = 0
+    print("start session")
+    with tf.Session() as session:
+        isFine = True
+        while (isFine):
+            session.run(model)
+            print("Successfull Runs: {}".format(count))
+            print("Agent A's Model is: {} ".format(agent_a._get_model()))
+            print("Agent B's Model is: {} ".format(agent_b._get_model()))
+
+            initial_state = initial_state_maker(0.0, 0.0, initial_model_agent_a[:], initial_model_agent_b)
+            isFine = run_till_tit_for_tat(simulate(initial_state, action_pair_dynamics, full_observation_function,
+                                                   reflective_pair_observation_function, agent_a, agent_b))
+            count += 1
+            print("")
 
 def main():
 
@@ -240,8 +320,13 @@ def main():
 
     # defection_confection_test()
 
-    lola_test()
+    # lola_test()
 
+    # lola_control_test()
+
+    # count_lola_tit_for_tat()
+
+    count_control_tit_for_tat()
 
 if __name__ == "__main__":
     main()

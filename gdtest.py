@@ -219,8 +219,8 @@ def two_agent_test(lola=False):
                         [300.0, 1.0]]
     initial_model_agent_a = [0.6, -0.4, 0.2]
     initial_model_agent_b = [0.2, -0.1, 0.3]
-    agent_a = make_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A", lola=True)
-    agent_b = make_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B", lola=True)
+    agent_a = make_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A", lola=lola)
+    agent_b = make_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B", lola=lola)
 
     model = tf.global_variables_initializer()
     with tf.Session() as session:

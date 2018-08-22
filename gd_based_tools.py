@@ -204,11 +204,11 @@ def reverse_observation_model(state):
 def empty_update_model(me, _, observation):
     return me
 
-def get_gd_update_model(utility_loss_minus_opp):
+def get_gd_update_model(utility_loss_minus_opp, lola_lookahead):
 
     def gd_update(me: InputNode, observation, opp):
         update = tf.gradients(utility_loss_minus_opp(opp, me, observation), me.tf_node)
-        out = me.tf_node + update[0]*0.1
+        out = me.tf_node + update[0]*lola_lookahead
         return ConstNode(out)
 
     return gd_update
@@ -230,11 +230,15 @@ def utility_loss_minus_opp(opp, me, observation: ActionPairObservationNode):
                             initial_state_to_process, 1)
 
 
-def make_agent(get_session, start_vector, payoff, name):
+def make_agent(get_session, start_vector, payoff, name, prediction_depth=1, lola=False, lola_lookahead=0.1, gd_rate=0.01):
     last_me_action_node = InputNode(load_me_action)
     last_opp_action_node = InputNode(load_opp_action)
     opp_params_node = InputNode(load_opp_model)
     me_params_node = TriVal_VariableNode(start_vector, "me", get_session)
+
+    opp_update_model = empty_update_model
+    if lola:
+        opp_update_model = get_gd_update_model(utility_loss_minus_opp, lola_lookahead)
 
     inputs = [last_me_action_node, last_opp_action_node, opp_params_node]
 
@@ -242,7 +246,7 @@ def make_agent(get_session, start_vector, payoff, name):
     initial_state_to_process = TotalStateNode(initial_state, me_params_node,  opp_params_node,  0,  1.0)
     u = get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model,
                          simple_agent_model, transparent_observation_model, reverse_observation_model,
-                         empty_update_model, empty_update_model, initial_state_to_process, 1, False)
+                         empty_update_model, opp_update_model, initial_state_to_process, prediction_depth, False)
 
     return TransparentAgentDecorator(
                 SamplingAgentDecorator(
@@ -252,38 +256,8 @@ def make_agent(get_session, start_vector, payoff, name):
                                 simple_agent_model(ActionPairObservationNode(last_me_action_node, last_opp_action_node), me_params_node),
                                 u,
                                 me_params_node.tf_node,
-                                load_inputs(inputs)
-                            ),
-                            name
-                        )
-                ),
-                me_params_node.get_val
-    )
-
-def make__lola_agent(get_session, start_vector, payoff, name):
-    last_me_action_node = InputNode(load_me_action)
-    last_opp_action_node = InputNode(load_opp_action)
-    opp_params_node = InputNode(load_opp_model)
-    me_params_node = TriVal_VariableNode(start_vector, "me", get_session)
-
-    opp_update_model = get_gd_update_model(utility_loss_minus_opp)
-
-    inputs = [last_me_action_node, last_opp_action_node, opp_params_node]
-    initial_state = ActionPairStateNode(last_me_action_node, last_opp_action_node)
-    initial_state_to_process = TotalStateNode(initial_state, me_params_node,  opp_params_node,  0,  1.0)
-    u = get_utility_node(get_utility_function_from_payoff(payoff), action_pair_dyn_model, simple_agent_model,
-                         simple_agent_model, transparent_observation_model, reverse_observation_model,
-                         empty_update_model, opp_update_model, initial_state_to_process, 1, False)
-
-    return TransparentAgentDecorator(
-                SamplingAgentDecorator(
-                        NameAgentDecorator(
-                            GradientDescentBasedAgent(
-                                get_session,
-                                simple_agent_model(ActionPairObservationNode(last_me_action_node, last_opp_action_node), me_params_node),
-                                u,
-                                me_params_node.tf_node,
-                                load_inputs(inputs)
+                                load_inputs(inputs),
+                                gd_rate=gd_rate
                             ),
                             name
                         )

@@ -218,8 +218,8 @@ def lola_test():
                         [300.0, 1.0]]
     initial_model_agent_a = [0.6, -0.4, 0.2]
     initial_model_agent_b = [0.2, -0.1, 0.3]
-    agent_a = make__lola_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
-    agent_b = make__lola_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B")
+    agent_a = make_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A", lola=True)
+    agent_b = make_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B", lola=True)
 
     model = tf.global_variables_initializer()
     with tf.Session() as session:
@@ -259,8 +259,8 @@ def count_lola_tit_for_tat():
                         [300.0, 1.0]]
     initial_model_agent_a = [0.6, -0.4, 0.2]
     initial_model_agent_b = [0.2, -0.1, 0.3]
-    agent_a = make__lola_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A")
-    agent_b = make__lola_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B")
+    agent_a = make_agent(get_session, initial_model_agent_a[:], prisoners_payoff, "Agent A", lola=True)
+    agent_b = make_agent(get_session, initial_model_agent_b[:], prisoners_payoff, "Agent B", lola=True)
 
     model = tf.global_variables_initializer()
     count = 0
@@ -320,13 +320,13 @@ def main():
 
     # defection_confection_test()
 
-    # lola_test()
+    lola_test()
 
     # lola_control_test()
 
     # count_lola_tit_for_tat()
 
-    count_control_tit_for_tat()
+    # count_control_tit_for_tat()
 
 if __name__ == "__main__":
     main()
